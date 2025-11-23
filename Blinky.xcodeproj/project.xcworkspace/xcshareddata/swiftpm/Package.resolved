@@ -1,0 +1,87 @@
+{
+  "originHash" : "a42f7fbfeabf07753186f2cd78937b461f1f471f120c12aef74806518511b911",
+  "pins" : [
+    {
+      "identity" : "alamofire",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Alamofire/Alamofire",
+      "state" : {
+        "revision" : "513364f870f6bfc468f9d2ff0a95caccc10044c5",
+        "version" : "5.10.2"
+      }
+    },
+    {
+      "identity" : "hero",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/HeroTransitions/Hero",
+      "state" : {
+        "revision" : "670b81ed3d95f7183bbc009d0ec67c71506557b5",
+        "version" : "1.6.4"
+      }
+    },
+    {
+      "identity" : "kingfisher",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/onevcat/Kingfisher.git",
+      "state" : {
+        "revision" : "d30a5fad881137e2267f96a8e3fc35c58999bb94",
+        "version" : "8.6.2"
+      }
+    },
+    {
+      "identity" : "motion",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/b3ll/Motion",
+      "state" : {
+        "branch" : "main",
+        "revision" : "c9a57f9d2b9d0a1e1b905753175e75a422d381d5"
+      }
+    },
+    {
+      "identity" : "swift-numerics",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-numerics",
+      "state" : {
+        "revision" : "0c0290ff6b24942dadb83a929ffaaa1481df04a2",
+        "version" : "1.1.1"
+      }
+    },
+    {
+      "identity" : "swiftuimasonry",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ciaranrobrien/SwiftUIMasonry",
+      "state" : {
+        "branch" : "main",
+        "revision" : "09487c808d8c68b034371276cf6c153bebca7913"
+      }
+    },
+    {
+      "identity" : "swiftuipager",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/fermoya/SwiftUIPager.git",
+      "state" : {
+        "revision" : "4ddc04c801aac143090bb14cf26603a3bf9c74cb",
+        "version" : "2.5.0"
+      }
+    },
+    {
+      "identity" : "swiftuix",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SwiftUIX/SwiftUIX",
+      "state" : {
+        "revision" : "d9f903b214b9d56e3c1e4533b03359aee94acd5d",
+        "version" : "0.2.4"
+      }
+    },
+    {
+      "identity" : "swiftyjson",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SwiftyJSON/SwiftyJSON",
+      "state" : {
+        "revision" : "af76cf3ef710b6ca5f8c05f3a31307d44a3c5828",
+        "version" : "5.0.2"
+      }
+    }
+  ],
+  "version" : 3
+}

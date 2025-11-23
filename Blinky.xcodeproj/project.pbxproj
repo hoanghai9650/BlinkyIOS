@@ -6,6 +6,18 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		4E01BB352ECC6DEE007EA4D6 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 4E01BB342ECC6DEE007EA4D6 /* Kingfisher */; };
+		4E01BB372ECC6DEE007EA4D6 /* SwiftyJSON in Frameworks */ = {isa = PBXBuildFile; productRef = 4E01BB362ECC6DEE007EA4D6 /* SwiftyJSON */; };
+		4E01BB392ECC6DEE007EA4D6 /* SwiftUIMasonry in Frameworks */ = {isa = PBXBuildFile; productRef = 4E01BB382ECC6DEE007EA4D6 /* SwiftUIMasonry */; };
+		4E01BB3B2ECC6DEE007EA4D6 /* Alamofire in Frameworks */ = {isa = PBXBuildFile; productRef = 4E01BB3A2ECC6DEE007EA4D6 /* Alamofire */; };
+		4E01BB3D2ECC6DEE007EA4D6 /* Hero in Frameworks */ = {isa = PBXBuildFile; productRef = 4E01BB3C2ECC6DEE007EA4D6 /* Hero */; };
+		4E01BB3F2ECC6DEE007EA4D6 /* Graphing in Frameworks */ = {isa = PBXBuildFile; productRef = 4E01BB3E2ECC6DEE007EA4D6 /* Graphing */; };
+		4E01BB412ECC6DEE007EA4D6 /* Motion in Frameworks */ = {isa = PBXBuildFile; productRef = 4E01BB402ECC6DEE007EA4D6 /* Motion */; };
+		4E01BB432ECC6DEE007EA4D6 /* SwiftUIPager in Frameworks */ = {isa = PBXBuildFile; productRef = 4E01BB422ECC6DEE007EA4D6 /* SwiftUIPager */; };
+		4E01BB452ECC6DEE007EA4D6 /* SwiftUIX in Frameworks */ = {isa = PBXBuildFile; productRef = 4E01BB442ECC6DEE007EA4D6 /* SwiftUIX */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		4E01BB0F2ECC6654007EA4D6 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +64,15 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4E01BB452ECC6DEE007EA4D6 /* SwiftUIX in Frameworks */,
+				4E01BB372ECC6DEE007EA4D6 /* SwiftyJSON in Frameworks */,
+				4E01BB3B2ECC6DEE007EA4D6 /* Alamofire in Frameworks */,
+				4E01BB3F2ECC6DEE007EA4D6 /* Graphing in Frameworks */,
+				4E01BB392ECC6DEE007EA4D6 /* SwiftUIMasonry in Frameworks */,
+				4E01BB412ECC6DEE007EA4D6 /* Motion in Frameworks */,
+				4E01BB3D2ECC6DEE007EA4D6 /* Hero in Frameworks */,
+				4E01BB432ECC6DEE007EA4D6 /* SwiftUIPager in Frameworks */,
+				4E01BB352ECC6DEE007EA4D6 /* Kingfisher in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +99,7 @@
 				4E01BB012ECC6653007EA4D6 /* Blinky */,
 				4E01BB112ECC6654007EA4D6 /* BlinkyTests */,
 				4E01BB1B2ECC6654007EA4D6 /* BlinkyUITests */,
+				4E01BB332ECC6DEE007EA4D6 /* Frameworks */,
 				4E01BB002ECC6653007EA4D6 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -90,6 +112,13 @@
 				4E01BB182ECC6654007EA4D6 /* BlinkyUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		4E01BB332ECC6DEE007EA4D6 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -112,6 +141,15 @@
 			);
 			name = Blinky;
 			packageProductDependencies = (
+				4E01BB342ECC6DEE007EA4D6 /* Kingfisher */,
+				4E01BB362ECC6DEE007EA4D6 /* SwiftyJSON */,
+				4E01BB382ECC6DEE007EA4D6 /* SwiftUIMasonry */,
+				4E01BB3A2ECC6DEE007EA4D6 /* Alamofire */,
+				4E01BB3C2ECC6DEE007EA4D6 /* Hero */,
+				4E01BB3E2ECC6DEE007EA4D6 /* Graphing */,
+				4E01BB402ECC6DEE007EA4D6 /* Motion */,
+				4E01BB422ECC6DEE007EA4D6 /* SwiftUIPager */,
+				4E01BB442ECC6DEE007EA4D6 /* SwiftUIX */,
 			);
 			productName = Blinky;
 			productReference = 4E01BAFF2ECC6653007EA4D6 /* Blinky.app */;
@@ -195,6 +233,16 @@
 			);
 			mainGroup = 4E01BAF62ECC6653007EA4D6;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				4E01BB2B2ECC670E007EA4D6 /* XCRemoteSwiftPackageReference "Kingfisher" */,
+				4E01BB2C2ECC6717007EA4D6 /* XCRemoteSwiftPackageReference "SwiftyJSON" */,
+				4E01BB2D2ECC6722007EA4D6 /* XCRemoteSwiftPackageReference "SwiftUIMasonry" */,
+				4E01BB2E2ECC6738007EA4D6 /* XCRemoteSwiftPackageReference "Alamofire" */,
+				4E01BB2F2ECC6792007EA4D6 /* XCRemoteSwiftPackageReference "Hero" */,
+				4E01BB302ECC679F007EA4D6 /* XCRemoteSwiftPackageReference "Motion" */,
+				4E01BB312ECC67B6007EA4D6 /* XCRemoteSwiftPackageReference "SwiftUIPager" */,
+				4E01BB322ECC67D3007EA4D6 /* XCRemoteSwiftPackageReference "SwiftUIX" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 4E01BB002ECC6653007EA4D6 /* Products */;
 			projectDirPath = "";
@@ -400,6 +448,10 @@
 				DEVELOPMENT_TEAM = FP55LUB3Z9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Blinky needs camera access to capture new photos.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Blinky tags photos with your current location so you can remember where shots were taken.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Allow Blinky to save captured and processed photos into your photo library.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Allow Blinky to browse and manage photos stored in your library.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -432,6 +484,10 @@
 				DEVELOPMENT_TEAM = FP55LUB3Z9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Blinky needs camera access to capture new photos.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Blinky tags photos with your current location so you can remember where shots were taken.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Allow Blinky to save captured and processed photos into your photo library.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Allow Blinky to browse and manage photos stored in your library.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -578,6 +634,121 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		4E01BB2B2ECC670E007EA4D6 /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/onevcat/Kingfisher.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.6.2;
+			};
+		};
+		4E01BB2C2ECC6717007EA4D6 /* XCRemoteSwiftPackageReference "SwiftyJSON" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/SwiftyJSON/SwiftyJSON";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.0.2;
+			};
+		};
+		4E01BB2D2ECC6722007EA4D6 /* XCRemoteSwiftPackageReference "SwiftUIMasonry" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ciaranrobrien/SwiftUIMasonry";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+		4E01BB2E2ECC6738007EA4D6 /* XCRemoteSwiftPackageReference "Alamofire" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Alamofire/Alamofire";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.10.2;
+			};
+		};
+		4E01BB2F2ECC6792007EA4D6 /* XCRemoteSwiftPackageReference "Hero" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/HeroTransitions/Hero";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.6.4;
+			};
+		};
+		4E01BB302ECC679F007EA4D6 /* XCRemoteSwiftPackageReference "Motion" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/b3ll/Motion";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+		4E01BB312ECC67B6007EA4D6 /* XCRemoteSwiftPackageReference "SwiftUIPager" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/fermoya/SwiftUIPager.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.0;
+			};
+		};
+		4E01BB322ECC67D3007EA4D6 /* XCRemoteSwiftPackageReference "SwiftUIX" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/SwiftUIX/SwiftUIX";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.2.4;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		4E01BB342ECC6DEE007EA4D6 /* Kingfisher */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4E01BB2B2ECC670E007EA4D6 /* XCRemoteSwiftPackageReference "Kingfisher" */;
+			productName = Kingfisher;
+		};
+		4E01BB362ECC6DEE007EA4D6 /* SwiftyJSON */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4E01BB2C2ECC6717007EA4D6 /* XCRemoteSwiftPackageReference "SwiftyJSON" */;
+			productName = SwiftyJSON;
+		};
+		4E01BB382ECC6DEE007EA4D6 /* SwiftUIMasonry */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4E01BB2D2ECC6722007EA4D6 /* XCRemoteSwiftPackageReference "SwiftUIMasonry" */;
+			productName = SwiftUIMasonry;
+		};
+		4E01BB3A2ECC6DEE007EA4D6 /* Alamofire */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4E01BB2E2ECC6738007EA4D6 /* XCRemoteSwiftPackageReference "Alamofire" */;
+			productName = Alamofire;
+		};
+		4E01BB3C2ECC6DEE007EA4D6 /* Hero */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4E01BB2F2ECC6792007EA4D6 /* XCRemoteSwiftPackageReference "Hero" */;
+			productName = Hero;
+		};
+		4E01BB3E2ECC6DEE007EA4D6 /* Graphing */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4E01BB302ECC679F007EA4D6 /* XCRemoteSwiftPackageReference "Motion" */;
+			productName = Graphing;
+		};
+		4E01BB402ECC6DEE007EA4D6 /* Motion */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4E01BB302ECC679F007EA4D6 /* XCRemoteSwiftPackageReference "Motion" */;
+			productName = Motion;
+		};
+		4E01BB422ECC6DEE007EA4D6 /* SwiftUIPager */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4E01BB312ECC67B6007EA4D6 /* XCRemoteSwiftPackageReference "SwiftUIPager" */;
+			productName = SwiftUIPager;
+		};
+		4E01BB442ECC6DEE007EA4D6 /* SwiftUIX */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4E01BB322ECC67D3007EA4D6 /* XCRemoteSwiftPackageReference "SwiftUIX" */;
+			productName = SwiftUIX;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 4E01BAF72ECC6653007EA4D6 /* Project object */;
 }
