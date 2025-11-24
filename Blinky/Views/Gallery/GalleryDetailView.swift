@@ -41,7 +41,21 @@ struct GalleryDetailView: View {
                 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 16) {
-                        polaroidCard.padding(.top, 4)
+                        PolaroidView(
+                            asset: asset,
+                            namespace: namespace,
+                            onTap: onClose
+                        )
+//                        .background(
+//                            GeometryReader { proxy in
+//                                Color.clear
+//                                    .preference(key: ViewWidthKey.self, value: proxy.size.width)
+//                            }
+//                        )
+//                        .onPreferenceChange(ViewWidthKey.self) { width in
+//                            polaroidWidth = width
+//                        }
+                        .padding(.top, 4)
                         metadataCard
                     }
                     .padding(.horizontal, 16)
@@ -96,24 +110,7 @@ struct GalleryDetailView: View {
         formatter.dateFormat = "EEE dd MMM yyyy"
         return formatter
     }
-    
-    private var polaroidCard: some View {
-        PolaroidView(
-            asset: asset,
-            namespace: namespace,
-            onTap: onClose
-        )
-        .background(
-            GeometryReader { proxy in
-                Color.clear
-                    .preference(key: ViewWidthKey.self, value: proxy.size.width)
-            }
-        )
-        .onPreferenceChange(ViewWidthKey.self) { width in
-            polaroidWidth = width
-        }
-    }
-    
+ 
     private var metadataCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             // Preset row
