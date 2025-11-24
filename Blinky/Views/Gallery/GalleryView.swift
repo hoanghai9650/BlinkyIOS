@@ -34,16 +34,23 @@ struct GalleryView: View {
                        HStack {
                            Spacer()
                                    HStack(spacing: 24) {
-                                       if viewModel.isSelectionMode {
-                                           Image(systemName: "trash")
-                                               .frame(width: 42,height: 42)
-                                               .font(.system(size: 16))
-                                               .glassEffect(.regular.interactive())
-                                               .glassEffectID("trash", in: namespace)
-                                               .onTapGesture {
-//                                                   viewModel.deleteSelected
-                                               }
-                                       }
+                                        if viewModel.isSelectionMode {
+                                            Button {
+                                                if !viewModel.selectedAssetIDs.isEmpty {
+                                                    withAnimation {
+                                                        viewModel.deleteSelected(from: assets, context: modelContext)
+                                                    }
+                                                }
+                                            } label: {
+                                                Image(systemName: "trash")
+                                                    .frame(width: 42,height: 42)
+                                                    .font(.system(size: 16))
+                                                    .foregroundColor(viewModel.selectedAssetIDs.isEmpty ? .secondary : .red)
+                                                    .glassEffect(.regular.interactive())
+                                                    .glassEffectID("trash", in: namespace)
+                                            }
+                                            .disabled(viewModel.selectedAssetIDs.isEmpty)
+                                        }
                                        Button {
                                            withAnimation{
                                                viewModel.toggleSelectionMode()
@@ -141,7 +148,7 @@ private struct GalleryTile: View {
     
     var body: some View {
         // Use previewURL for consistent image quality with detail view
-        let image = PhotoImageProvider.image(at: asset.previewURL)
+        let image = PhotoImageProvider.image(at: asset.originalURL)
         return ZStack(alignment: .topTrailing) {
             if let image {
                 Image(uiImage: image)
@@ -181,14 +188,21 @@ private struct GalleryTile: View {
                     )
             }
             if isSelectionMode {
-                Button(role: .destructive, action: onDelete) {
-                    Image(systemName: "trash")
-                        .font(.system(size: 16))
-                        .foregroundColor(.white)
-                        .padding(8)
+                ZStack {
+                    if isSelected {
+                        Circle()
+                            .fill(Color.blue)
+                            .frame(width: 24, height: 24)
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.white)
+                    } else {
+                        Circle()
+                            .stroke(Color.white, lineWidth: 2)
+                            .frame(width: 24, height: 24)
+                            .background(Circle().fill(Color.black.opacity(0.3)))
+                    }
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.red)
                 .padding(8)
             }
         }
