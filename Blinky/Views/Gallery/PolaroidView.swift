@@ -17,14 +17,14 @@ struct PolaroidView: View {
     
     var body: some View {
         Group {
-            if let image = PhotoImageProvider.image(at: asset.originalURL) {
+            if let image = PhotoImageProvider.image(at: asset.thumbnailURL) {
                 Image(uiImage: image)
                     .resizable()
-                    .matchedGeometryEffect(
-                        id: asset.id,
-                        in: namespace,
-                        isSource: true
-                    )
+//                    .matchedGeometryEffect(
+//                        id: asset.id,
+//                        in: namespace,
+//                        isSource: true
+//                    )
                     .scaledToFit()
                     .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
                     .onTapGesture { onTap() }
@@ -84,7 +84,7 @@ struct PolaroidView: View {
         Color(.sRGB, red: 245/255, green: 245/255, blue: 237/255, opacity: 1)
     }
     private var pri: Color {
-        Color(.sRGB, red: 255/255, green: 96/255, blue: 56/255, opacity: 1)
+        Color.primary
     }
     
     private var dateStamp: String {

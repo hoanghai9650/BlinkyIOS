@@ -26,45 +26,19 @@ struct GalleryContainerView: View {
     @State private var selection: GalleryTab = .gallery
     @State private var focusedAsset: PhotoAsset?
     @Namespace private var animation
+    @Namespace private var namespaceTransition
     
     var body: some View {
-        NavigationStack{
-            
-     
         ZStack(alignment: .bottom) {
             // Content
             Group {
                 switch selection {
                 case .gallery:
-                    NavigationStack {
-                        GalleryView(focusedAsset: $focusedAsset, namespace: animation)
-                            
-                    }
+                    GalleryView(focusedAsset: $focusedAsset, namespace: animation)
+                    
                 case .album:
-                    NavigationStack {
-                        FolderView()
-                            
-                    }
+                    FolderView()
                 }
-            }
-            
-            // Detail View Overlay
-            if let asset = focusedAsset {
-                GalleryDetailView(
-                    asset: asset,
-                    namespace: animation,
-                    onClose: {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            focusedAsset = nil
-                        }
-                    },
-                    onDelete: {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            focusedAsset = nil
-                        }
-                    }
-                )
-                .zIndex(999)
             }
             
             // Custom Tab Bar
@@ -73,19 +47,10 @@ struct GalleryContainerView: View {
                 .offset(y: focusedAsset == nil ? 0 : 100)
                 .animation(.spring(response: 0.35, dampingFraction: 0.9), value: focusedAsset)
         }
-        .background(
-            LinearGradient(colors: [Color(.sRGB, red: 46/255, green: 49/255, blue: 57/255, opacity: 1),
-                                    Color(.sRGB, red: 18/255, green: 19/255, blue: 24/255, opacity: 1)],
-                           startPoint: .top,
-                           endPoint: .bottom)
-                .ignoresSafeArea()
-        )
-    }
     }
     
     private var customTabBar: some View {
         ZStack{
-            
             HStack(spacing: 0) {
             Spacer()
             // Center - Gallery and Album icons
@@ -106,7 +71,7 @@ struct GalleryContainerView: View {
             Spacer()
         }
         .padding(.horizontal, 20)
-        .padding(.bottom, 16)
+        .padding(.bottom, 32)
             // Camera button - positioned to the right of center capsule
             Button {
                 onCameraRequest()
@@ -124,7 +89,7 @@ struct GalleryContainerView: View {
             }
             
             .padding(.leading, 16)
-            .padding(.bottom, 16)
+            .padding(.bottom, 32)
             .offset(x:100)
             
             

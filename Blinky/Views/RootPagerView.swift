@@ -29,43 +29,42 @@ struct RootPagerView: View {
     @State private var isCameraActive = false
     
     var body: some View {
-        GeometryReader { proxy in
-            Pager(page: page,
-                  data: pagerPages,
-                  id: \.id) { page in
-                switch page {
-                case .library:
-                    GalleryContainerView {
-                        self.page.update(.moveToLast)
-                    }
-                case .camera:
-                    NavigationStack {
+        NavigationStack {
+                Pager(page: page,
+                      data: pagerPages,
+                      id: \.id) { page in
+                    switch page {
+                    case .library:
+                        GalleryContainerView {
+                            self.page.update(.moveToLast)
+                        }
+                        
+                    case .camera:
                         CameraView(isActive: isCameraActive)
-                            .navigationBarTitleDisplayMode(.inline)
+//                            .navigationBarHidden(true)
                     }
                 }
-            }
-            .pagingPriority(.simultaneous)
-            .bounces(false)
-            .onPageWillChange { index in
-                guard pagerPages.indices.contains(index) else { return }
-                let newPage = pagerPages[index]
-                updateCameraActivity(for: newPage)
-            }
-            .onPageChanged { index in
-                guard pagerPages.indices.contains(index) else { return }
-                currentPage = pagerPages[index]
-                
-                updateCameraActivity(for: currentPage)
-            }
-            
-            .frame(width: proxy.size.width, height: proxy.size.height)
+                      .pagingPriority(.simultaneous)
+                      .sensitivity(.high)
+                      .bounces(false)
+                      .onPageWillChange { index in
+                          guard pagerPages.indices.contains(index) else { return }
+                          let newPage = pagerPages[index]
+                          updateCameraActivity(for: newPage)
+                      }
+                      .onPageChanged { index in
+                          guard pagerPages.indices.contains(index) else { return }
+                          currentPage = pagerPages[index]
+                          updateCameraActivity(for: currentPage)
+                      }
+ 
+                      .padding(1)
+                      .edgesIgnoringSafeArea(.all)
+                      .background(Color.blackKite.edgesIgnoringSafeArea(.all))
+                      .onAppear {
+                          updateCameraActivity(for: currentPage)
+                 }
         }
-        .edgesIgnoringSafeArea(.all)
-        .onAppear {
-            updateCameraActivity(for: currentPage)
-        }
-        .background(Color(.systemBackground).edgesIgnoringSafeArea(.all))
     }
     
     private func updateCameraActivity(for page: RootPage) {
@@ -74,3 +73,5 @@ struct RootPagerView: View {
         }
     }
 }
+
+
