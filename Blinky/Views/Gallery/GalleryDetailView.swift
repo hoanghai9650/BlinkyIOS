@@ -6,185 +6,224 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct GalleryDetailView: View {
     let asset: PhotoAsset
     let namespace: Namespace.ID
-    let onClose: () -> Void
     let onDelete: () -> Void
-    @State private var dragOffset: CGFloat = 0
-    @State private var polaroidWidth: CGFloat = 0
+    @Environment(\.dismiss) var dismiss
+    @State private var allowDismissalGesture: AllowedNavigationDismissalGestures = .none
     
     var body: some View {
-        ZStack {
-            // Backdrop blur background
-            BlurView(style: .systemThinMaterial).ignoresSafeArea()
-            VStack(spacing: 0) {
-                // Header with share button
-//                Color.clear
-                HStack {
-                    Button(action: onClose) {
-                        Image(systemName: "xmark")
+        
+            ZStack {
+                // Background
+                Color.blackKite.ignoresSafeArea()
+                
+                //Content
+                VStack(spacing: 0) {
+                    // Top Bar
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 24) {
+                            // Destination Image
+                            if let image = PhotoImageProvider.image(at: asset.originalURL) {
+                                let aspectRatio = image.size.width / image.size.height
+                                
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .aspectRatio(aspectRatio, contentMode: .fit)
+                                    .frame(maxWidth: .infinity)
+                                    .navigationTransition(.zoom(sourceID: asset.id, in: namespace))
+                                    .shadow(color: Color.black.opacity(0.3), radius: 20, x: 0, y: 10)
+//                                    .padding(.top, 32)
+                                    .navigationAllowDismissalGestures(allowDismissalGesture)
+                                    .task {
+                                        Task {
+                                            try? await Task.sleep(for: .seconds(1))
+                                            allowDismissalGesture = .all
+                                        }
+                                    }
+                                   
+                            }
+                            
+                            // Info Section
+                            GlassEffectContainer(){
+                                VStack(alignment: .leading, spacing: 20) {
+                                    // Header Info
+                                    HStack(alignment: .top) {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(asset.filterName.isEmpty ? "Original" : asset.filterName)
+                                                .font(.system(size: 24, weight: .bold))
+                                                .foregroundColor(.black)
+                                            
+                                            Text(dateFormatter.string(from: asset.capturedAt))
+                                                .font(.system(size: 14, weight: .medium))
+                                                .foregroundColor(.blackKite)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        Button(action: {}) {
+                                            Text("Use this Filter")
+                                                .font(.system(size: 16, weight: .semibold))
+                                                .foregroundColor(.white)
+                                                .padding(.horizontal, 20)
+                                                .padding(.vertical, 10)
+                                                .background(Color.blackKite)
+                                                .cornerRadius(24)
+                                        }
+                                    }
+                                    
+                                    Divider()
+                                        .background(Color.secondaryBackground)
+                                    
+                                    // Camera Details Grid
+                                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 20) {
+                                        detailItem(icon: "camera.aperture", title: "Aperture", value: "f/\(String(format: "%.1f", asset.aperture))")
+                                        detailItem(icon: "shutter", title: "Shutter", value: asset.shutterSpeed)
+                                        detailItem(icon: "sun.max", title: "ISO", value: "\(Int(asset.iso))")
+                                        detailItem(icon: "camera.lens", title: "Lens", value: asset.lens)
+                                    }
+                                    
+                                    if let location = asset.locationDescription {
+                                        Divider()
+                                            .background(Color.black)
+                                        
+                                        HStack(spacing: 12) {
+                                            Image(systemName: "mappin.circle.fill")
+                                                .font(.system(size: 20))
+                                                .foregroundColor(.blackKite)
+                                            
+                                            Text(location)
+                                                .font(.system(size: 14, weight: .medium))
+                                                .foregroundColor(.blackKite)
+                                            
+                                            Spacer()
+                                        }
+                                        .padding(.vertical, 4)
+                                    }
+                                }
+                                .padding(24)
+                                .background(Color.primary)
+                                .cornerRadius(32)
+                                .glassEffect(
+                                    .regular.interactive(),
+                                    in: .rect(cornerRadius: 32)
+                                )
+                                .padding(.horizontal, 16)
+                            }
+                        }
+                        .padding(.bottom, 100) // Space for bottom bar
                     }
-                    .buttonStyle(LiquidGlassButtonStyle(color: Color(.sRGB, red: 245/255, green: 245/255, blue: 237/255, opacity: 1)))
-                    
+                }
+//                .toolbar{
+//                    ToolbarItem(placement: .cancellationAction){
+//                        Button("Cancel", systemImage: "xmark"){
+//                            dismiss()
+//                        }
+//                    }
+//                }
+                
+                
+                // Bottom Action Bar
+                VStack {
                     Spacer()
-                    
-                    Button(action: {}) {
-                        Image(systemName: "square.and.arrow.up")
+                    HStack(spacing: 40) {
+                        actionButton(icon: "folder", action: {})
+                        
+                        // Main Action (e.g. Edit or Favorite) - Central Button
+                        Button(action: {}) {
+                            Image(systemName: "heart.fill")
+                                .font(.system(size: 24))
+                                .foregroundColor(.white)
+                                .frame(width: 64, height: 64)
+                                .background(Color.primary)
+                                .clipShape(Circle())
+                                .shadow(color: Color.primary.opacity(0.4), radius: 10, x: 0, y: 5)
+                        }
+                        
+                        actionButton(icon: "trash", action: onDelete, isDestructive: true)
                     }
-                    .buttonStyle(LiquidGlassButtonStyle(color: Color(.sRGB, red: 245/255, green: 245/255, blue: 237/255, opacity: 1)))
+                    .padding(.horizontal, 30)
+                    .padding(.bottom, 16)
+      
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-                .padding(.bottom, 16)
-                
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 16) {
-                        PolaroidView(
-                            asset: asset,
-                            namespace: namespace,
-                            onTap: onClose
-                        )
-//                        .background(
-//                            GeometryReader { proxy in
-//                                Color.clear
-//                                    .preference(key: ViewWidthKey.self, value: proxy.size.width)
-//                            }
-//                        )
-//                        .onPreferenceChange(ViewWidthKey.self) { width in
-//                            polaroidWidth = width
-//                        }
-                        .padding(.top, 4)
-                        metadataCard
-                    }
-                    .padding(.horizontal, 16)
-                }
-           
-                
-                Spacer(minLength: 0)
-                
-                bottomActions
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+           
+        
+ 
+    }
+    
+    private func detailItem(icon: String, title: String, value: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon) // Using system names for now, might need custom icons
+                .font(.system(size: 18))
+                .foregroundColor(.white)
+                .frame(width: 32, height: 32)
+                .background(Color.secondaryBackground)
+                .clipShape(Circle())
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.black)
+                Text(value)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.blackKite)
+            }
         }
-        .navigationBarHidden(true)
-//        .offset(y: dragOffset)
-//        .gesture(
-//            DragGesture()
-//                .onChanged { value in
-//                    if value.translation.height > 0 {
-//                        dragOffset = value.translation.height
-//                    }
-//                }
-//                .onEnded { value in
-//                    if value.translation.height > 120 {
-//                        handleClose()
-//                    } else {
-//                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-//                            dragOffset = 0
-//                        }
-//                    }
-//                }
-//        )
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
     
-    private func handleClose() {
-        dragOffset = 0
-        onClose()
-    }
-    
-    private func handleDelete() {
-        dragOffset = 0
-        onDelete()
+    private func actionButton(icon: String, action: @escaping () -> Void, isDestructive: Bool = false) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 20))
+                .foregroundColor(isDestructive ? .red : .icon)
+                .padding(16)
+                //.background(Color.secondaryBackground)
+                //.clipShape(Circle())
+        }
     }
     
     private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
-        formatter.dateFormat = "dd.MM.yyyy"
+        formatter.dateFormat = "MMMM dd, yyyy"
         return formatter
     }
+}
+
+#Preview {
+    @Previewable @Namespace var namespace
     
-    private var timeFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEE dd MMM yyyy"
-        return formatter
-    }
- 
-    private var metadataCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // Preset row
-            HStack {
-                Text("Preset: (ICON) \(asset.filterName)")
-                    .font(.system(size: 10, weight: .regular))
-                    .foregroundColor(Color(.sRGB, red: 245/255, green: 245/255, blue: 237/255, opacity: 1))
-                Spacer()
-                Text(asset.lens)
-                    .font(.system(size: 10, weight: .regular))
-                    .foregroundColor(Color(.sRGB, red: 245/255, green: 245/255, blue: 237/255, opacity: 1))
-            }
-            
-            // Metrics row
-            HStack {
-                Text("ISO: \(Int(asset.iso))")
-                    .font(.system(size: 8, weight: .regular))
-                    .foregroundColor(Color(.sRGB, red: 245/255, green: 245/255, blue: 237/255, opacity: 1))
-                Spacer()
-                Text("Aperture: f/\(String(format: "%.1f", asset.aperture))")
-                    .font(.system(size: 8, weight: .regular))
-                    .foregroundColor(Color(.sRGB, red: 245/255, green: 245/255, blue: 237/255, opacity: 1))
-                Spacer()
-                Text("Shutter: \(asset.shutterSpeed)")
-                    .font(.system(size: 8, weight: .regular))
-                    .foregroundColor(Color(.sRGB, red: 245/255, green: 245/255, blue: 237/255, opacity: 1))
-            }
-            
-            // Divider
-            Rectangle()
-                .fill(Color(.sRGB, red: 245/255, green: 245/255, blue: 237/255, opacity: 0.3))
-                .frame(height: 0.5)
-            
-            // Location
-            if let location = asset.locationDescription {
-                Text("Location: \(location)")
-                    .font(.system(size: 8, weight: .regular))
-                    .foregroundColor(Color(.sRGB, red: 245/255, green: 245/255, blue: 237/255, opacity: 1))
-            }
-            
-            // Time
-            Text("Time: \(timeFormatter.string(from: asset.capturedAt))")
-                .font(.system(size: 8, weight: .regular))
-                .foregroundColor(Color(.sRGB, red: 245/255, green: 245/255, blue: 237/255, opacity: 1))
-        }
-        .padding(16)
-        .frame(width: polaroidWidth > 0 ? polaroidWidth : nil, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.sRGB, red: 245/255, green: 245/255, blue: 237/255, opacity: 0.2))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(Color(.sRGB, red: 247/255, green: 247/255, blue: 248/255, opacity: 1), lineWidth: 1)
-                )
-        )
+    // Create a temporary file URL for preview
+    let documentsPath = FileManager.default.temporaryDirectory
+    let imageURL = documentsPath.appendingPathComponent("preview_img.jpg")
+    
+    // Save img1 from asset catalog to temporary location for preview
+    if let image = UIImage(named: "img1"), let data = image.jpegData(compressionQuality: 1.0) {
+        try? data.write(to: imageURL)
     }
     
-    private var bottomActions: some View {
-        HStack(spacing: 64) {
-            // Folder button
-            Button(action: {}) {
-                Image(systemName: "folder.fill")
-            }
-            .buttonStyle(LiquidGlassButtonStyle(color: Color(.sRGB, red: 245/255, green: 245/255, blue: 237/255, opacity: 1)))
-            
-            // Delete button
-            Button(action: handleDelete) {
-                Image(systemName: "trash.fill")
-            }
-            .buttonStyle(LiquidGlassButtonStyle(color: Color(.sRGB, red: 232/255, green: 58/255, blue: 48/255, opacity: 1)))
+    let sampleAsset = PhotoAsset(
+        originalURL: imageURL,
+        previewURL: imageURL,
+        thumbnailURL: imageURL,
+        filterName: "Cinematic",
+        lens: "24mm",
+        iso: 200,
+        aperture: 1.8,
+        shutterSpeed: "1/125s",
+        locationDescription: "San Francisco, CA",
+        capturedAt: Date()
+    )
+    
+    return GalleryDetailView(
+        asset: sampleAsset,
+        namespace: namespace,
+        onDelete: {
+            print("Delete tapped")
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 12)
-        .padding(.bottom, 0)
-        
-            }
+    )
 }
