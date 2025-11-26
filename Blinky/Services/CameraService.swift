@@ -7,21 +7,24 @@
 
 import AVFoundation
 import UIKit
+import CoreMotion
 
 enum CameraServiceError: Error {
     case configurationFailed
     case captureFailure
+    case invalidImageData
 }
 
 final class CameraService: NSObject {
     let session = AVCaptureSession()
     private let sessionQueue = DispatchQueue(label: "com.blinky.camera.session")
     private let photoOutput = AVCapturePhotoOutput()
-    private var captureCompletion: ((Result<AVCapturePhoto, Error>) -> Void)?
+    private var captureCompletion: ((Result<Data, Error>) -> Void)?
     private(set) var currentDevice: AVCaptureDevice?
     
-    /// Stores the current video rotation angle - updated on orientation changes
-    private var currentVideoRotationAngle: CGFloat = 90 // Default portrait
+    // Core Motion for accurate device orientation (works even if UI is locked to portrait)
+    private let motionManager = CMMotionManager()
+    private var currentDeviceOrientation: UIDeviceOrientation = .portrait
     
     override init() {
         super.init()
@@ -80,19 +83,7 @@ final class CameraService: NSObject {
     }
     
     func startRunning() {
-        // Enable device orientation updates
-        UIDevice.current.beginGeneratingDeviceOrientationNotifications()
-        
-        // Observe orientation changes
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(deviceOrientationDidChange),
-            name: UIDevice.orientationDidChangeNotification,
-            object: nil
-        )
-        
-        // Set initial orientation
-        updateVideoRotationAngle()
+        startMotionUpdates()
         
         sessionQueue.async {
             if !self.session.isRunning {
@@ -102,8 +93,7 @@ final class CameraService: NSObject {
     }
     
     func stopRunning() {
-        NotificationCenter.default.removeObserver(self, name: UIDevice.orientationDidChangeNotification, object: nil)
-        UIDevice.current.endGeneratingDeviceOrientationNotifications()
+        stopMotionUpdates()
         
         sessionQueue.async {
             if self.session.isRunning {
@@ -112,58 +102,59 @@ final class CameraService: NSObject {
         }
     }
     
-    @objc private func deviceOrientationDidChange() {
-        updateVideoRotationAngle()
-    }
+    // MARK: - Core Motion for Device Orientation
     
-    private func updateVideoRotationAngle() {
-        let deviceOrientation = UIDevice.current.orientation
-        
-        // Only update for valid orientations (not flat or unknown)
-        guard deviceOrientation.isValidInterfaceOrientation else { return }
-        
-        let angle: CGFloat
-        switch deviceOrientation {
-        case .portrait:
-            angle = 90
-        case .portraitUpsideDown:
-            angle = 270
-        case .landscapeLeft:
-            // Device rotated left (home button on right) → 0°
-            angle = 0
-        case .landscapeRight:
-            // Device rotated right (home button on left) → 180°
-            angle = 180
-        default:
+    private func startMotionUpdates() {
+        guard motionManager.isAccelerometerAvailable else {
+            print("CameraService: Accelerometer not available")
             return
         }
         
-        currentVideoRotationAngle = angle
-        
-        // Update the connection immediately so it's ready for capture
-        sessionQueue.async {
-            if let connection = self.photoOutput.connection(with: .video) {
-                connection.videoRotationAngle = angle
+        motionManager.accelerometerUpdateInterval = 0.1
+        motionManager.startAccelerometerUpdates(to: .main) { [weak self] data, error in
+            guard let self, let acceleration = data?.acceleration else { return }
+            
+            // Determine orientation from accelerometer data
+            let orientation = self.orientationFromAcceleration(acceleration)
+            if orientation != self.currentDeviceOrientation {
+                self.currentDeviceOrientation = orientation
+                print("CameraService: Device orientation changed to \(orientation.rawValue)")
             }
         }
     }
     
-    func capturePhoto(settings: AVCapturePhotoSettings = AVCapturePhotoSettings(), completion: @escaping (Result<AVCapturePhoto, Error>) -> Void) {
+    private func stopMotionUpdates() {
+        motionManager.stopAccelerometerUpdates()
+    }
+    
+    private func orientationFromAcceleration(_ acceleration: CMAcceleration) -> UIDeviceOrientation {
+        let x = acceleration.x
+        let y = acceleration.y
+        
+        // Threshold to avoid jitter
+        let threshold = 0.5
+        
+        if y < -threshold {
+            return .portrait
+        } else if y > threshold {
+            return .portraitUpsideDown
+        } else if x < -threshold {
+            return .landscapeRight
+        } else if x > threshold {
+            return .landscapeLeft
+        }
+        
+        // If no strong orientation detected, keep current
+        return currentDeviceOrientation
+    }
+    
+    func capturePhoto(settings: AVCapturePhotoSettings = AVCapturePhotoSettings(), completion: @escaping (Result<Data, Error>) -> Void) {
         sessionQueue.async {
             guard self.captureCompletion == nil else { return }
             self.captureCompletion = completion
             
             let captureSettings = settings
             captureSettings.flashMode = .auto
-            captureSettings.maxPhotoDimensions = CMVideoDimensions(
-                width: 4032,
-                height: 3024
-            )
-            
-            // Ensure connection has correct rotation angle before capture
-            if let connection = self.photoOutput.connection(with: .video) {
-                connection.videoRotationAngle = self.currentVideoRotationAngle
-            }
             
             self.photoOutput.capturePhoto(with: captureSettings, delegate: self)
         }
@@ -177,13 +168,81 @@ extension CameraService: AVCapturePhotoCaptureDelegate {
         captureCompletion = nil
         
         if let error {
-            DispatchQueue.main.async {
-                completion?(.failure(error))
-            }
-        } else {
-            DispatchQueue.main.async {
-                completion?(.success(photo))
-            }
+            completion?(.failure(error))
+            return
         }
+        
+        guard let imageData = photo.fileDataRepresentation() else {
+            completion?(.failure(CameraServiceError.invalidImageData))
+            return
+        }
+        
+        guard let provider = CGDataProvider(data: imageData as CFData) else {
+            completion?(.failure(CameraServiceError.invalidImageData))
+            return
+        }
+        
+        guard let cgImage = CGImage(
+            jpegDataProviderSource: provider,
+            decode: nil,
+            shouldInterpolate: true,
+            intent: .defaultIntent
+        ) else {
+            completion?(.failure(CameraServiceError.invalidImageData))
+            return
+        }
+        
+        // Use orientation tracked by Core Motion accelerometer
+        let deviceOrientation = currentDeviceOrientation
+        let imageOrientation = deviceOrientation.uiImageOrientation
+        print("CameraService: deviceOrientation=\(deviceOrientation.rawValue), imageOrientation=\(imageOrientation.rawValue)")
+        
+        let image = UIImage(cgImage: cgImage, scale: 1, orientation: imageOrientation)
+        
+        // Normalize orientation by redrawing (bakes orientation into pixels)
+        let normalizedImage = image.normalizedOrientation()
+        
+        guard let finalData = normalizedImage.jpegData(compressionQuality: 0.95) else {
+            completion?(.failure(CameraServiceError.invalidImageData))
+            return
+        }
+        
+        completion?(.success(finalData))
+    }
+}
+
+// MARK: - UIDeviceOrientation to UIImage.Orientation
+
+extension UIDeviceOrientation {
+    var uiImageOrientation: UIImage.Orientation {
+        switch self {
+        case .portrait:
+            return .right
+        case .portraitUpsideDown:
+            return .left
+        case .landscapeLeft:
+            // Home button on right → rotate 180°
+            return .down
+        case .landscapeRight:
+            // Home button on left → no rotation
+            return .up
+        default:
+            return .right // Default to portrait
+        }
+    }
+}
+
+// MARK: - UIImage Extension
+
+extension UIImage {
+    func normalizedOrientation() -> UIImage {
+        guard imageOrientation != .up else { return self }
+        
+        UIGraphicsBeginImageContextWithOptions(size, false, scale)
+        draw(in: CGRect(origin: .zero, size: size))
+        let normalizedImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        
+        return normalizedImage ?? self
     }
 }

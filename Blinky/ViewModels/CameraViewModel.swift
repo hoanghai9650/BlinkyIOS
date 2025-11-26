@@ -305,8 +305,8 @@ final class CameraViewModel: ObservableObject {
         cameraService.capturePhoto(settings: settings) { [weak self] result in
             guard let self else { return }
             switch result {
-            case .success(let photo):
-                Task { await self.handleCapture(photo: photo, context: modelContext, locationDescription: locationDescription) }
+            case .success(let imageData):
+                Task { await self.handleCapture(imageData: imageData, context: modelContext, locationDescription: locationDescription) }
             case .failure(let error):
                 Task { @MainActor in
                     self.captureState = .failure(error.localizedDescription)
@@ -315,20 +315,13 @@ final class CameraViewModel: ObservableObject {
         }
     }
     
-    private func handleCapture(photo: AVCapturePhoto, context: ModelContext, locationDescription: String?) async {
+    private func handleCapture(imageData: Data, context: ModelContext, locationDescription: String?) async {
         await MainActor.run {
             self.captureState = .processing
         }
         
-        guard let data = photo.fileDataRepresentation() else {
-            await MainActor.run {
-                self.captureState = .failure("Cannot read photo data.")
-            }
-            return
-        }
-        
         do {
-            let bundle = try await processingService.renderOutputs(from: data)
+            let bundle = try await processingService.renderOutputs(from: imageData)
             let metadata = PhotoMetadata(
                 filterName: selectedFilter.rawValue,
                 lens: selectedLens.rawValue,
