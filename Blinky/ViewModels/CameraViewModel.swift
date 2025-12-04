@@ -71,6 +71,15 @@ final class CameraViewModel: ObservableObject {
     
     @Published var isFlashEnabled: Bool = false
     
+    // MARK: - Focus & Exposure Lock
+    
+    @Published var isFocusLocked: Bool = false
+    @Published var focusPoint: CGPoint? = nil
+    @Published var focusExposureBias: Float = 0.0  // Adjustable exposure bias (works for both focus and lock)
+    @Published var showFocusIndicator: Bool = false
+    
+    private var focusHideTask: Task<Void, Never>?
+    
     // MARK: - Services
     
     private let cameraService = CameraService()
@@ -214,6 +223,10 @@ final class CameraViewModel: ObservableObject {
         case .exposure:
             isExposureAuto.toggle()
             if isExposureAuto {
+                // Reset to default value with animation
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                    exposureValue = activeControl.defaultValue
+                }
                 settingsService.setAutoExposure()
             } else {
                 settingsService.setExposureBias(Float(exposureValue))
@@ -221,6 +234,9 @@ final class CameraViewModel: ObservableObject {
         case .temperature:
             isTemperatureAuto.toggle()
             if isTemperatureAuto {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                    temperatureValue = activeControl.defaultValue
+                }
                 settingsService.setAutoWhiteBalance()
             } else {
                 settingsService.setWhiteBalance(temperature: Float(temperatureValue))
@@ -228,6 +244,9 @@ final class CameraViewModel: ObservableObject {
         case .shutterSpeed:
             isShutterAuto.toggle()
             if isShutterAuto {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                    shutterSpeedIndex = activeControl.defaultValue
+                }
                 settingsService.setAutoShutter()
             } else if let shutterValue = ShutterSpeedValue.allCases[safe: Int(shutterSpeedIndex)] {
                 let duration = CMTime(seconds: shutterValue.durationSeconds, preferredTimescale: 1000000)
@@ -236,6 +255,9 @@ final class CameraViewModel: ObservableObject {
         case .iso:
             isISOAuto.toggle()
             if isISOAuto {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                    isoValue = activeControl.defaultValue
+                }
                 settingsService.setAutoISO()
             } else {
                 settingsService.setISO(Float(isoValue))
@@ -295,6 +317,75 @@ final class CameraViewModel: ObservableObject {
         isFlashEnabled.toggle()
     }
     
+    // MARK: - Focus & Exposure Control
+    
+    /// Tap to focus at normalized point - shows indicator with exposure slider
+    func focusAt(_ point: CGPoint) {
+        // Cancel any pending hide task
+        focusHideTask?.cancel()
+        
+        focusPoint = point
+        showFocusIndicator = true
+        focusExposureBias = 0.0
+        cameraService.focus(at: point)
+        cameraService.adjustExposureBias(0.0)
+        
+        // Schedule auto-hide after 3 seconds (if not locked and not dragging)
+        scheduleFocusHide()
+    }
+    
+    /// Schedule the focus indicator to hide after delay
+    func scheduleFocusHide() {
+        focusHideTask?.cancel()
+        focusHideTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
+            guard !Task.isCancelled, !isFocusLocked else { return }
+            withAnimation(.easeOut(duration: 0.25)) {
+                showFocusIndicator = false
+                focusPoint = nil
+            }
+        }
+    }
+    
+    /// Cancel auto-hide (when user is dragging exposure)
+    func cancelFocusHide() {
+        focusHideTask?.cancel()
+    }
+    
+    /// Adjust exposure bias (works both focused and locked states)
+    func adjustExposure(_ bias: Float) {
+        focusExposureBias = min(max(bias, -3.0), 3.0)
+        cameraService.adjustExposureBias(focusExposureBias)
+    }
+    
+    /// Long press (2 sec) to lock focus & exposure
+    func lockFocusAndExposure() {
+        guard let point = focusPoint else { return }
+        
+        focusHideTask?.cancel()
+        isFocusLocked = true
+        cameraService.focus(at: point)
+        cameraService.lockFocusAndExposure()
+        cameraService.adjustExposureBias(focusExposureBias)
+    }
+    
+    /// Tap elsewhere to dismiss focus indicator or unlock
+    func dismissFocus() {
+        focusHideTask?.cancel()
+        
+        if isFocusLocked {
+            // Unlock
+            isFocusLocked = false
+            cameraService.unlockFocusAndExposure()
+        }
+        
+        withAnimation(.easeOut(duration: 0.2)) {
+            showFocusIndicator = false
+            focusPoint = nil
+        }
+        focusExposureBias = 0.0
+    }
+    
     func capture(modelContext: ModelContext, locationDescription: String?) {
         captureState = .capturing
         
@@ -305,8 +396,8 @@ final class CameraViewModel: ObservableObject {
         cameraService.capturePhoto(settings: settings) { [weak self] result in
             guard let self else { return }
             switch result {
-            case .success(let photo):
-                Task { await self.handleCapture(photo: photo, context: modelContext, locationDescription: locationDescription) }
+            case .success(let imageData):
+                Task { await self.handleCapture(imageData: imageData, context: modelContext, locationDescription: locationDescription) }
             case .failure(let error):
                 Task { @MainActor in
                     self.captureState = .failure(error.localizedDescription)
@@ -315,20 +406,13 @@ final class CameraViewModel: ObservableObject {
         }
     }
     
-    private func handleCapture(photo: AVCapturePhoto, context: ModelContext, locationDescription: String?) async {
+    private func handleCapture(imageData: Data, context: ModelContext, locationDescription: String?) async {
         await MainActor.run {
             self.captureState = .processing
         }
         
-        guard let data = photo.fileDataRepresentation() else {
-            await MainActor.run {
-                self.captureState = .failure("Cannot read photo data.")
-            }
-            return
-        }
-        
         do {
-            let bundle = try await processingService.renderOutputs(from: data)
+            let bundle = try await processingService.renderOutputs(from: imageData)
             let metadata = PhotoMetadata(
                 filterName: selectedFilter.rawValue,
                 lens: selectedLens.rawValue,

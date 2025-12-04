@@ -9,6 +9,7 @@ import SwiftUI
 
 struct FilterSheetView: View {
     @Binding var selectedFilter: FilterLUT
+    var namespace: Namespace.ID
     @Environment(\.dismiss) private var dismiss
     
     private let columns = [
@@ -49,15 +50,10 @@ struct FilterSheetView: View {
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 32)
+            
+            Spacer()
         }
-        .background(
-            Color.secondaryBackground
-                .clipShape(
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                )
-                .ignoresSafeArea(edges: .bottom)
-        )
-        .presentationDetents([.height(280)])
+        .presentationDetents([.height(380)])
         .presentationDragIndicator(.hidden)
         .presentationBackground(.clear)
     }
@@ -144,11 +140,22 @@ extension FilterLUT {
 
 // MARK: - Preview
 
-#Preview {
-    ZStack {
-        Color.background.ignoresSafeArea()
-        
-        FilterSheetView(selectedFilter: .constant(.cinematic))
+struct FilterSheetPreview: View {
+    @Namespace private var namespace
+    
+    var body: some View {
+        ZStack {
+            Color.background.ignoresSafeArea()
+            
+            FilterSheetView(
+                selectedFilter: .constant(.cinematic),
+                namespace: namespace
+            )
+        }
     }
+}
+
+#Preview {
+    FilterSheetPreview()
 }
 

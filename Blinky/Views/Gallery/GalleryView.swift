@@ -16,99 +16,115 @@ struct GalleryView: View {
     @Query(sort: \PhotoAsset.capturedAt, order: .reverse) private var assets: [PhotoAsset]
     @State private var hoveredAsset: PhotoAsset?
     @StateObject private var viewModel = GalleryViewModel()
+    @State private var isScrolledPastTop: Bool = false
     let namespace: Namespace.ID
+    @Namespace private var namespaceHeader
+    @Binding var isScrolledToBottom: Bool
+    let safeArea: EdgeInsets
     
-    
-    init(focusedAsset: Binding<PhotoAsset?>, namespace: Namespace.ID) {
+    init(focusedAsset: Binding<PhotoAsset?>, namespace: Namespace.ID, isScrolledToBottom: Binding<Bool>, safeArea: EdgeInsets) {
         self._focusedAsset = focusedAsset
         self.namespace = namespace
+        self._isScrolledToBottom = isScrolledToBottom
+        self.safeArea = safeArea
     }
     
     
     var body: some View {
-        NavigationView{
-            ZStack {
-                Color.blackKite.ignoresSafeArea()
-
-                VStack(alignment: .leading, spacing: 16){
-                    ScrollView(showsIndicators: false) {
-                        galleryGrid
-                            
-                    }
-                    .scrollClipDisabled(false)
-                    .navigationDestination(for: PhotoAsset.self) { asset in
-                        GalleryDetailView(
-                            asset: asset,
-                            namespace: namespace,
-                            onDelete: {}
-                        )
-                    }
+        ZStack(alignment: .top) {
+            Color.background.ignoresSafeArea()
+            
+            // ScrollView content
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    // Spacer for header
+                    Color.clear.frame(height: safeArea.top + 52)
+                    
+                    galleryGrid
+                    
+                    // Bottom spacer for tab bar
+                    Color.clear.frame(height: safeArea.bottom + 80)
                 }
-
-                
-               
-               
-//                .clipShape(Rectangle())
-//                .toolbarBackground(.hidden, for: .navigationBar)
-                
-              
-                //Hover
-                if let asset = hoveredAsset {
-                    HoverView(
-                        asset: asset,
-                        namespace: namespace,
-                        onClose: {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                hoveredAsset = nil
-                            }
-                        },
-                        onDelete: {
-                            withAnimation {
-                                viewModel.delete(asset, context: modelContext)
-                                hoveredAsset = nil
-                            }
-                        }
-                    )
-                    .zIndex(2)
+            }
+            .scrollClipDisabled(false)
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentOffset.y > 0
+            } action: { _, isPastTop in
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isScrolledPastTop = isPastTop
                 }
-            } .toolbar {
+            }
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                // Check if not at the very bottom
+                let maxOffset = geometry.contentSize.height - geometry.containerSize.height
+                return geometry.contentOffset.y < maxOffset - 10
+            } action: { _, notAtBottom in
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isScrolledToBottom = notAtBottom
+                }
+            }
+            
+            // Custom Header
+            ScrollableHeader(
+                safeAreaTop: safeArea.top,
+                isScrolled: isScrolledPastTop
+            ) {
                 if viewModel.isSelectionMode {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button("Delete", systemImage: "trash") {
-                            if !viewModel.selectedAssetIDs.isEmpty {
-                                withAnimation {
-                                    viewModel.deleteSelected(from: assets, context: modelContext)
-                                }
-                            }
-                        }
-                        .tint(viewModel.selectedAssetIDs.isEmpty ? .secondary : .red)
-                        .disabled(viewModel.selectedAssetIDs.isEmpty)
-                    }
-                }
-                ToolbarSpacer(.fixed, placement: .topBarTrailing)
-                
-                ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        withAnimation {
-                            viewModel.toggleSelectionMode()
-                            if !viewModel.isSelectionMode {
-                                focusedAsset = nil
+                        if !viewModel.selectedAssetIDs.isEmpty {
+                            withAnimation {
+                                viewModel.deleteSelected(from: assets, context: modelContext)
                             }
                         }
                     } label: {
-                        Text(viewModel.isSelectionMode ? "Done" : "Select")
+                        Image(systemName: "trash")
                             .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(Color.text)
+                            .frame(width: 42, height: 42)
+                            .glassEffect()
+                            .glassEffectID("trash", in: namespaceHeader)
+                            .foregroundColor(viewModel.selectedAssetIDs.isEmpty ? .secondary : .red)
                     }
+                    .disabled(viewModel.selectedAssetIDs.isEmpty)
+                }
+                
+                Button {
+                    withAnimation {
+                        viewModel.toggleSelectionMode()
+                        if !viewModel.isSelectionMode {
+                            focusedAsset = nil
+                        }
+                    }
+                } label: {
+                    Text(viewModel.isSelectionMode ? "Done" : "Select")
+                        .font(.system(size: 16, weight: .medium))
+                        .frame(minWidth: 64, minHeight: 42)
+                        .foregroundColor(Color.text)
+                        .glassEffect()
+                        .glassEffectID("select", in: namespaceHeader)
                 }
             }
-        }
             
-
-            .edgesIgnoringSafeArea(.bottom)
-            .edgesIgnoringSafeArea(.top)
-
+            // Hover
+            if let asset = hoveredAsset {
+                HoverView(
+                    asset: asset,
+                    namespace: namespace,
+                    onClose: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            hoveredAsset = nil
+                        }
+                    },
+                    onDelete: {
+                        withAnimation {
+                            viewModel.delete(asset, context: modelContext)
+                            hoveredAsset = nil
+                        }
+                    }
+                )
+                .zIndex(2)
+            }
         }
+    }
        
     
     private var formattedDate: String {
@@ -119,7 +135,7 @@ struct GalleryView: View {
     
     private var galleryGrid: some View {
         
-        return Masonry(.vertical, lines: 2) {
+        return Masonry(.vertical, lines: 2, spacing: 16) {
             ForEach(assets){ asset in
                 let isFocused = focusedAsset?.id == asset.id
                 let isHovered = hoveredAsset?.id == asset.id
@@ -197,7 +213,6 @@ private struct GalleryTile: View {
                         isSource: true
                     )
                     .scaledToFill()
-                // Apply matchedGeometryEffect to just the image
                     .opacity(isFocused ? 0 : 1)
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .overlay(
@@ -211,12 +226,6 @@ private struct GalleryTile: View {
                         id: asset.id,
                         in: namespace,
                         isSource: true
-                    )
-                    .shadow(
-                        color: Color(.sRGB, red: 245/255, green: 245/255, blue: 237/255, opacity: 0.15),
-                        radius: 8,
-                        x: 2,
-                        y: 2
                     )
             }
             if isSelectionMode {
@@ -258,6 +267,7 @@ struct ScaleButtonStyle: ButtonStyle {
 
 #Preview {
     @Previewable @State var focusedAsset: PhotoAsset? = nil
+    @Previewable @State var isScrolledToBottom = true
     @Previewable @Namespace var namespace
     
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
@@ -320,7 +330,12 @@ struct ScaleButtonStyle: ButtonStyle {
     }
     
     return NavigationStack {
-        GalleryView(focusedAsset: $focusedAsset, namespace: namespace)
-            .modelContainer(container)
+        GalleryView(
+            focusedAsset: $focusedAsset,
+            namespace: namespace,
+            isScrolledToBottom: $isScrolledToBottom,
+            safeArea: EdgeInsets(top: 59, leading: 0, bottom: 34, trailing: 0)
+        )
+        .modelContainer(container)
     }
 }

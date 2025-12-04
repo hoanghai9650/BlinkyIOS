@@ -10,6 +10,7 @@ import SwiftUI
 struct CameraControlButton: View {
     let icon: String
     let isSelected: Bool
+    var isActive: Bool = false  // Glow when value is set (not auto/default)
     let action: () -> Void
     
     private let size: CGFloat = 48
@@ -18,7 +19,7 @@ struct CameraControlButton: View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(isSelected ? .white : Color.icon)
+                .foregroundStyle(isSelected ? .white : (isActive ? Color.primary : Color.icon))
                 .frame(width: size, height: size)
                 .background(
                     Circle()
@@ -27,14 +28,23 @@ struct CameraControlButton: View {
                 .overlay(
                     Circle()
                         .strokeBorder(
-                            isSelected ? Color.primary : Color.white.opacity(0.15),
-                            lineWidth: 1.5
+                            isSelected ? Color.primary : (isActive ? Color.primary.opacity(0.6) : Color.white.opacity(0.15)),
+                            lineWidth: isActive && !isSelected ? 2 : 1.5
                         )
                 )
+                .shadow(
+                    color: isActive && !isSelected ? Color.primary.opacity(0.4) : .clear,
+                    radius: 10,
+                    x: 0,
+                    y: 5
+                )
+                .glassEffect(.regular.interactive())
         }
         .buttonStyle(.plain)
         .scaleEffect(isSelected ? 1.05 : 1.0)
+
         .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isSelected)
+        .animation(.easeInOut(duration: 0.2), value: isActive)
     }
 }
 
@@ -177,6 +187,7 @@ struct LensPillButton: View {
                         .fill(isSelected ? Color.primary : Color.white.opacity(0.15))
                 )
         }
+        .glassEffect(.regular.interactive())
         .buttonStyle(.plain)
     }
 }

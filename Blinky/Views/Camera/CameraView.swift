@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct CameraView: View {
     @Environment(\.modelContext) private var modelContext
@@ -17,10 +18,11 @@ struct CameraView: View {
     @State private var showFilterSheet = false
     @State private var showOptionsSheet = false
     
+    @Namespace private var sheetAnimation
+    @Namespace private var filterNameSpace
+    
     var body: some View {
         NavigationView{
-            
-            
             GeometryReader { proxy in
                 ZStack {
                     Color.background.ignoresSafeArea()
@@ -72,13 +74,20 @@ struct CameraView: View {
                 viewModel.stopSession()
             }
             .sheet(isPresented: $showFilterSheet) {
-                FilterSheetView(selectedFilter: $viewModel.selectedFilter)
+                FilterSheetView(
+                    selectedFilter: $viewModel.selectedFilter,
+                    namespace: sheetAnimation
+                    
+                ).navigationTransition(.zoom(sourceID: "filter", in:  filterNameSpace))
             }
             .sheet(isPresented: $showOptionsSheet) {
                 CameraOptionsSheet(
                     storeLocation: $viewModel.storeLocation,
                     showGrid: $viewModel.showGrid,
-                    whiteBalancePreset: $viewModel.whiteBalancePreset
+                    whiteBalancePreset: $viewModel.whiteBalancePreset,
+                    namespace: sheetAnimation
+                ).navigationTransition(
+                    .zoom(sourceID: "optionsSheet", in:  sheetAnimation)
                 )
             }
         }
@@ -122,41 +131,132 @@ struct CameraView: View {
             } label: {
                 Image(systemName: "gearshape.fill")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(Color.icon)
+                    .foregroundStyle(isOptionsActive ? Color.primary : Color.icon)
                     .frame(width: 40, height: 40)
                     .background(
                         Circle()
                             .fill(Color.white.opacity(0.1))
                     )
+                    .overlay(
+                        Circle()
+                            .strokeBorder(
+                                isOptionsActive ? Color.primary.opacity(0.6) : Color.clear,
+                                lineWidth: 2
+                            )
+                    )
+                    .shadow(
+                        color: isOptionsActive ? Color.primary.opacity(0.4) : .clear,
+                        radius: 10,
+                        x: 0,
+                        y: 5
+                    )
             }
+            .matchedTransitionSource(id: "optionsSheet", in: sheetAnimation)
         }
     }
     
     // MARK: - Camera Preview
+    
+    @State private var focusIndicatorPosition: CGPoint? = nil
     
     private func cameraPreviewSection(proxy: GeometryProxy) -> some View {
         let previewWidth = proxy.size.width - 32
         let previewHeight = previewWidth * 1.2
         
         return ZStack {
-            CameraPreviewView(session: viewModel.session)
-                .frame(width: previewWidth, height: previewHeight)
-                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
-                )
+            CameraPreviewView(
+                session: viewModel.session,
+                onFocusTap: { tapInfo in
+                    // tapInfo contains properly converted device coordinates + original view coordinates
+                    
+                    // If currently locked, unlock first
+                    if viewModel.isFocusLocked {
+                        viewModel.dismissFocus()
+                    }
+                    
+                    // Store the view position for indicator display (original tap location)
+                    focusIndicatorPosition = tapInfo.viewPoint
+                    
+                    // Focus at the properly converted device coordinates
+                    viewModel.focusAt(tapInfo.devicePoint)
+                },
+                onLongPress: { devicePoint in
+                    // Long press - lock focus and exposure
+                    let generator = UIImpactFeedbackGenerator(style: .medium)
+                    generator.impactOccurred()
+                    
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                        viewModel.lockFocusAndExposure()
+                    }
+                }
+            )
+            .frame(width: previewWidth, height: previewHeight)
+            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+            )
             
             // Grid overlay
             if viewModel.showGrid {
                 GridOverlayView()
                     .frame(width: previewWidth, height: previewHeight)
                     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                    .allowsHitTesting(false)
+            }
+            
+            // Focus indicator with exposure control
+            if viewModel.showFocusIndicator, let indicatorPos = focusIndicatorPosition {
+                // Calculate clamped position to keep indicator within preview bounds
+                let indicatorWidth: CGFloat = 120 // circle + slider width
+                let indicatorHeight: CGFloat = 180 // slider height
+                
+                // Clamp X: circle is on left, slider on right
+                let minX: CGFloat = 45 // half circle size
+                let maxX = previewWidth - indicatorWidth + 45
+                let clampedX = min(max(indicatorPos.x, minX), maxX)
+                
+                // Clamp Y
+                let minY = indicatorHeight / 2
+                let maxY = previewHeight - indicatorHeight / 2
+                let clampedY = min(max(indicatorPos.y, minY), maxY)
+                
+                FocusIndicatorView(
+                    isLocked: viewModel.isFocusLocked,
+                    exposureBias: $viewModel.focusExposureBias,
+                    onExposureChange: { bias in
+                        viewModel.cancelFocusHide()
+                        viewModel.adjustExposure(bias)
+                    },
+                    onDragEnded: {
+                        if !viewModel.isFocusLocked {
+                            viewModel.scheduleFocusHide()
+                        }
+                    }
+                )
+                .position(x: clampedX, y: clampedY)
+                .allowsHitTesting(true)
             }
             
             // Overlays on camera
             VStack {
                 HStack {
+                    // AE/AF Lock badge
+                    if viewModel.isFocusLocked {
+                        HStack(spacing: 4) {
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 10, weight: .bold))
+                            Text("AE/AF LOCK")
+                                .font(.system(size: 10, weight: .bold))
+                        }
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.gold)
+                        .clipShape(Capsule())
+                        .transition(.scale.combined(with: .opacity))
+                    }
+                    
                     Spacer()
                     lastCaptureThumbnail
                 }
@@ -168,8 +268,14 @@ struct CameraView: View {
                     .padding(.bottom, 12)
             }
             .padding(12)
+            .allowsHitTesting(true)
         }
         .frame(width: previewWidth, height: previewHeight)
+        .onChange(of: viewModel.showFocusIndicator) { showing in
+            if !showing {
+                focusIndicatorPosition = nil
+            }
+        }
     }
     
     // MARK: - Control Buttons Row
@@ -181,6 +287,7 @@ struct CameraView: View {
                 CameraControlButton(
                     icon: controlType.icon,
                     isSelected: viewModel.activeControl == controlType,
+                    isActive: isControlActive(controlType),
                     action: { viewModel.activeControl = controlType }
                 )
             }
@@ -189,9 +296,26 @@ struct CameraView: View {
             CameraControlButton(
                 icon: "circle.hexagongrid.fill",
                 isSelected: false,
+                isActive: viewModel.selectedFilter != .none,
                 action: { showFilterSheet = true }
             )
+            .matchedTransitionSource(id: "filter", in: filterNameSpace)
         }
+    }
+    
+    /// Check if a control has been manually set (not in auto mode)
+    private func isControlActive(_ controlType: CameraControlType) -> Bool {
+        switch controlType {
+        case .exposure: return !viewModel.isExposureAuto
+        case .temperature: return !viewModel.isTemperatureAuto
+        case .shutterSpeed: return !viewModel.isShutterAuto
+        case .iso: return !viewModel.isISOAuto
+        }
+    }
+    
+    /// Check if any option has been changed from default
+    private var isOptionsActive: Bool {
+        viewModel.showGrid || !viewModel.storeLocation || viewModel.whiteBalancePreset != .auto
     }
     
     // MARK: - Control Wheel Section
@@ -212,6 +336,7 @@ struct CameraView: View {
                 value: viewModel.currentControlValue,
                 range: viewModel.activeControl.range,
                 step: viewModel.activeControl.step,
+                defaultValue: viewModel.activeControl.defaultValue,
                 isAuto: viewModel.currentAutoState,
                 onScrollStarted: { viewModel.disableAutoForCurrentControl() }
             )
@@ -306,6 +431,133 @@ struct CameraView: View {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
                             .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
                     )
+            }
+        }
+    }
+}
+
+// MARK: - Focus Indicator View (Apple Camera Style)
+
+struct FocusIndicatorView: View {
+    let isLocked: Bool
+    @Binding var exposureBias: Float
+    let onExposureChange: (Float) -> Void
+    let onDragEnded: () -> Void
+    
+    @State private var scale: CGFloat = 1.4
+    @State private var opacity: Double = 0.0
+    @State private var isDraggingExposure: Bool = false
+    @State private var dragStartY: CGFloat = 0
+    @State private var initialBias: Float = 0
+    
+    private let circleSize: CGFloat = 75
+    private let sliderHeight: CGFloat = 150
+    
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            // Focus circle
+            ZStack {
+                // Outer circle
+                Circle()
+                    .strokeBorder(
+                        isLocked ? Color.gold : Color.gold,
+                        lineWidth: isLocked ? 2 : 1.5
+                    )
+                    .frame(width: circleSize, height: circleSize)
+                
+                // Inner crosshairs (subtle)
+                if !isLocked {
+                    Group {
+                        Rectangle()
+                            .fill(Color.gold.opacity(0.6))
+                            .frame(width: 1, height: 15)
+                        Rectangle()
+                            .fill(Color.gold.opacity(0.6))
+                            .frame(width: 15, height: 1)
+                    }
+                }
+                
+                // Lock icon when locked
+                if isLocked {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Color.gold)
+                }
+            }
+            
+            // Exposure slider (always visible)
+            VStack(spacing: 4) {
+                // Plus indicator
+                Image(systemName: "plus")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(Color.gold.opacity(0.7))
+                
+                // Slider track
+                ZStack(alignment: .center) {
+                    // Track background
+                    Capsule()
+                        .fill(Color.white.opacity(0.2))
+                        .frame(width: 3, height: sliderHeight)
+                    
+                    // Center marker
+                    Circle()
+                        .fill(Color.white.opacity(0.5))
+                        .frame(width: 5, height: 5)
+                    
+                    // Sun indicator (draggable)
+                    Image(systemName: "sun.max.fill")
+                        .font(.system(size: 18))
+                        .foregroundStyle(Color.gold)
+                        .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+                        .offset(y: CGFloat(-exposureBias) * (sliderHeight / 6)) // Map -3...3 to slider
+                }
+                .frame(height: sliderHeight)
+                .contentShape(Rectangle().size(width: 44, height: sliderHeight + 20))
+                .gesture(
+                    DragGesture(minimumDistance: 1)
+                        .onChanged { value in
+                            if !isDraggingExposure {
+                                isDraggingExposure = true
+                                dragStartY = value.startLocation.y
+                                initialBias = exposureBias
+                            }
+                            
+                            let deltaY = dragStartY - value.location.y
+                            let biasChange = Float(deltaY / (sliderHeight / 6))
+                            let newBias = min(max(initialBias + biasChange, -3.0), 3.0)
+                            onExposureChange(newBias)
+                        }
+                        .onEnded { _ in
+                            isDraggingExposure = false
+                            onDragEnded()
+                        }
+                )
+                
+                // Minus indicator
+                Image(systemName: "minus")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(Color.gold.opacity(0.7))
+            }
+        }
+        .scaleEffect(scale)
+        .opacity(opacity)
+        .onAppear {
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.65)) {
+                scale = 1.0
+                opacity = 1.0
+            }
+        }
+        .onChange(of: isLocked) { locked in
+            if locked {
+                // Pulse animation when locking
+                withAnimation(.spring(response: 0.2, dampingFraction: 0.5)) {
+                    scale = 1.08
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+                        scale = 1.0
+                    }
+                }
             }
         }
     }

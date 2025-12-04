@@ -5,9 +5,7 @@
 //  Created by Codex.
 //
 
-import CoreImage
 import UIKit
-import ImageIO
 
 struct PhotoRenderBundle {
     let originalData: Data
@@ -37,18 +35,15 @@ final class PhotoProcessingService {
     }
     
     private func renderBundle(from data: Data) throws -> PhotoRenderBundle {
-        // Create UIImage - it automatically reads EXIF orientation
-        guard let originalImage = UIImage(data: data) else {
+        // Image data already has correct orientation baked in from CameraService
+        guard let image = UIImage(data: data) else {
             throw PhotoProcessingError.invalidPhotoData
         }
         
-        // Normalize the orientation by redrawing - this bakes the orientation into pixels
-        let normalizedImage = originalImage.normalizedOrientation()
-        
         // Generate different sizes
-        let originalData = try resizedJPEGData(from: normalizedImage, maxDimension: nil, compression: 0.95)
-        let previewData = try resizedJPEGData(from: normalizedImage, maxDimension: 1600, compression: 0.85)
-        let thumbnailData = try resizedJPEGData(from: normalizedImage, maxDimension: 512, compression: 0.75)
+        let originalData = try resizedJPEGData(from: image, maxDimension: nil, compression: 0.95)
+        let previewData = try resizedJPEGData(from: image, maxDimension: 1600, compression: 0.85)
+        let thumbnailData = try resizedJPEGData(from: image, maxDimension: 512, compression: 0.75)
         
         return PhotoRenderBundle(
             originalData: originalData,
@@ -80,25 +75,9 @@ final class PhotoProcessingService {
     }
 }
 
-// MARK: - UIImage Orientation Helpers
+// MARK: - UIImage Helpers
 
 extension UIImage {
-    /// Returns a new image with orientation normalized to .up
-    /// This redraws the image so the pixel data matches the visual orientation
-    func normalizedOrientation() -> UIImage {
-        // If already up, return self
-        guard imageOrientation != .up else { return self }
-        
-        // Redraw with correct orientation
-        UIGraphicsBeginImageContextWithOptions(size, false, scale)
-        draw(in: CGRect(origin: .zero, size: size))
-        let normalizedImage = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        
-        return normalizedImage ?? self
-    }
-    
-    /// Resize image to target size
     func resized(to targetSize: CGSize) -> UIImage {
         let renderer = UIGraphicsImageRenderer(size: targetSize)
         return renderer.image { _ in

@@ -23,10 +23,11 @@ enum GalleryTab: Int, Identifiable, CaseIterable {
 
 struct GalleryContainerView: View {
     var onCameraRequest: () -> Void = {}
+    let namespace: Namespace.ID
+    let safeArea: EdgeInsets
     @State private var selection: GalleryTab = .gallery
     @State private var focusedAsset: PhotoAsset?
-    @Namespace private var animation
-    @Namespace private var namespaceTransition
+    @State private var isScrolledToBottom: Bool = true
     
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -34,67 +35,65 @@ struct GalleryContainerView: View {
             Group {
                 switch selection {
                 case .gallery:
-                    GalleryView(focusedAsset: $focusedAsset, namespace: animation)
+                    GalleryView(
+                        focusedAsset: $focusedAsset,
+                        namespace: namespace,
+                        isScrolledToBottom: $isScrolledToBottom,
+                        safeArea: safeArea
+                    )
                     
                 case .album:
-                    FolderView()
+                    FolderView(isScrolledToBottom: $isScrolledToBottom, safeArea: safeArea)
                 }
             }
             
-            // Custom Tab Bar
-            customTabBar
-                .opacity(focusedAsset == nil ? 1 : 0)
-                .offset(y: focusedAsset == nil ? 0 : 100)
-                .animation(.spring(response: 0.35, dampingFraction: 0.9), value: focusedAsset)
+            // Custom Tab Bar with linear blur
+            ScrollableFooter(
+                safeAreaBottom: safeArea.bottom,
+                isScrolled: isScrolledToBottom
+            ) {
+                customTabBarContent
+            }
+            .opacity(focusedAsset == nil ? 1 : 0)
+            .offset(y: focusedAsset == nil ? 0 : 100)
+            .animation(.spring(response: 0.35, dampingFraction: 0.9), value: focusedAsset)
         }
+        .background(Color.background)
     }
     
-    private var customTabBar: some View {
-        ZStack{
+    private var customTabBarContent: some View {
+        ZStack {
             HStack(spacing: 0) {
-            Spacer()
-            // Center - Gallery and Album icons
-        
-                    HStack(spacing: 16) {
-                        tabButton(.gallery)
-                        tabButton(.album)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 4)
-                    .glassEffect(.regular.interactive())
-//                    .background(
-//                        .ultraThinMaterial,
-//                        in: Capsule()
-//                    )
+                Spacer()
                 
-
-            Spacer()
-        }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 32)
+                // Center - Gallery and Album icons
+                HStack(spacing: 16) {
+                    tabButton(.gallery)
+                    tabButton(.album)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 4)
+                .glassEffect(.regular.interactive())
+                
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 16)
+            
             // Camera button - positioned to the right of center capsule
             Button {
                 onCameraRequest()
-            }
-            label: {
+            } label: {
                 Image(systemName: "camera.fill")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(.white)
                     .frame(width: 46, height: 46)
-//                    .background(
-//                        Circle()
-//                            .fill(Color(.sRGB, red: 217/255, green: 93/255, blue: 61/255, opacity: 0.8))
-//                    )
                     .glassEffect(.regular.interactive().tint(Color(.sRGB, red: 217/255, green: 93/255, blue: 61/255, opacity: 0.8)))
             }
-            
             .padding(.leading, 16)
-            .padding(.bottom, 32)
-            .offset(x:100)
-            
-            
+            .padding(.bottom, 16)
+            .offset(x: 100)
         }
-        
     }
     
     private func tabButton(_ tab: GalleryTab) -> some View {
@@ -119,5 +118,6 @@ struct GalleryContainerView: View {
 }
 
 #Preview {
-    GalleryContainerView()
+    @Previewable @Namespace var namespace
+    GalleryContainerView(namespace: namespace, safeArea: EdgeInsets(top: 59, leading: 0, bottom: 34, trailing: 0))
 }
