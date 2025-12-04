@@ -6,9 +6,9 @@
 //
 
 import SwiftUI
-import SwiftUIPager
+import SwiftData
 
-enum RootPage: Int, Identifiable {
+enum RootPage: Int, Identifiable, CaseIterable {
     case library
     case camera
     
@@ -23,48 +23,61 @@ enum RootPage: Int, Identifiable {
 }
 
 struct RootPagerView: View {
-    private let pagerPages: [RootPage] = [.library, .camera]
-    @StateObject private var page = Page.withIndex(0)
     @State private var currentPage: RootPage = .library
     @State private var isCameraActive = false
+    @Namespace private var zoomTransition
+    @Environment(\.modelContext) private var modelContext
+    @State private var safeAreaInsets: EdgeInsets = .init()
     
     var body: some View {
         NavigationStack {
-                Pager(page: page,
-                      data: pagerPages,
-                      id: \.id) { page in
-                    switch page {
-                    case .library:
-                        GalleryContainerView {
-                            self.page.update(.moveToLast)
-                        }
-                        
-                    case .camera:
-                        CameraView(isActive: isCameraActive)
-//                            .navigationBarHidden(true)
-                    }
+            GeometryReader { geo in
+                TabView(selection: $currentPage) {
+                    GalleryContainerView(
+                        onCameraRequest: {
+                            withAnimation {
+                                currentPage = .camera
+                            }
+                        },
+                        namespace: zoomTransition,
+                        safeArea: safeAreaInsets
+                    )
+                    .tag(RootPage.library)
+                    
+                    CameraView(isActive: isCameraActive)
+                        .tag(RootPage.camera)
                 }
-                      .pagingPriority(.simultaneous)
-                      .sensitivity(.high)
-                      .bounces(false)
-                      .onPageWillChange { index in
-                          guard pagerPages.indices.contains(index) else { return }
-                          let newPage = pagerPages[index]
-                          updateCameraActivity(for: newPage)
-                      }
-                      .onPageChanged { index in
-                          guard pagerPages.indices.contains(index) else { return }
-                          currentPage = pagerPages[index]
-                          updateCameraActivity(for: currentPage)
-                      }
- 
-                      .padding(1)
-                      .edgesIgnoringSafeArea(.all)
-                      .background(Color.blackKite.edgesIgnoringSafeArea(.all))
-                      .onAppear {
-                          updateCameraActivity(for: currentPage)
-                 }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .ignoresSafeArea()
+                .background(Color.background.ignoresSafeArea())
+                .onAppear {
+                    // Capture safe area once on appear
+//                    safeAreaInsets = geo.safeAreaInsets
+                    UIScrollView.appearance().contentInsetAdjustmentBehavior = .never
+                    UIScrollView.appearance().automaticallyAdjustsScrollIndicatorInsets = false
+                }
+           
+            }
+
+            .navigationDestination(for: PhotoAsset.self) { asset in
+                GalleryDetailView(
+                    asset: asset,
+                    namespace: zoomTransition,
+                    onDelete: {
+                        modelContext.delete(asset)
+                    }
+                )
+//                .navigationBarBackButtonHidden(true)
+//                .toolbarVisibility(.hidden, for: .navigationBar)
+            }
+            .onChange(of: currentPage) { _, newPage in
+                updateCameraActivity(for: newPage)
+            }
+            .onAppear {
+                updateCameraActivity(for: currentPage)
+            }
         }
+   
     }
     
     private func updateCameraActivity(for page: RootPage) {
@@ -74,4 +87,6 @@ struct RootPagerView: View {
     }
 }
 
-
+#Preview {
+    RootPagerView()
+}

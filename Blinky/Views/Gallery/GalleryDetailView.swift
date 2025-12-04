@@ -19,7 +19,7 @@ struct GalleryDetailView: View {
         
             ZStack {
                 // Background
-                Color.blackKite.ignoresSafeArea()
+                Color.background.ignoresSafeArea()
                 
                 //Content
                 VStack(spacing: 0) {

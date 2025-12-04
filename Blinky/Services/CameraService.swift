@@ -82,6 +82,96 @@ final class CameraService: NSObject {
         }
     }
     
+    // MARK: - Focus & Exposure
+    
+    /// Tap to focus at a normalized point (0-1 coordinate space)
+    func focus(at point: CGPoint) {
+        sessionQueue.async {
+            guard let device = self.currentDevice else { return }
+            
+            do {
+                try device.lockForConfiguration()
+                
+                if device.isFocusPointOfInterestSupported {
+                    device.focusPointOfInterest = point
+                    device.focusMode = .autoFocus
+                }
+                
+                if device.isExposurePointOfInterestSupported {
+                    device.exposurePointOfInterest = point
+                    device.exposureMode = .autoExpose
+                }
+                
+                device.unlockForConfiguration()
+            } catch {
+                print("CameraService: Failed to focus - \(error)")
+            }
+        }
+    }
+    
+    /// Lock focus and exposure at current values
+    func lockFocusAndExposure() {
+        sessionQueue.async {
+            guard let device = self.currentDevice else { return }
+            
+            do {
+                try device.lockForConfiguration()
+                
+                if device.isFocusModeSupported(.locked) {
+                    device.focusMode = .locked
+                }
+                
+                if device.isExposureModeSupported(.locked) {
+                    device.exposureMode = .locked
+                }
+                
+                device.unlockForConfiguration()
+            } catch {
+                print("CameraService: Failed to lock focus/exposure - \(error)")
+            }
+        }
+    }
+    
+    /// Unlock focus and exposure (back to continuous auto)
+    func unlockFocusAndExposure() {
+        sessionQueue.async {
+            guard let device = self.currentDevice else { return }
+            
+            do {
+                try device.lockForConfiguration()
+                
+                if device.isFocusModeSupported(.continuousAutoFocus) {
+                    device.focusMode = .continuousAutoFocus
+                }
+                
+                if device.isExposureModeSupported(.continuousAutoExposure) {
+                    device.exposureMode = .continuousAutoExposure
+                }
+                
+                device.unlockForConfiguration()
+            } catch {
+                print("CameraService: Failed to unlock focus/exposure - \(error)")
+            }
+        }
+    }
+    
+    /// Adjust exposure bias while locked
+    func adjustExposureBias(_ bias: Float) {
+        sessionQueue.async {
+            guard let device = self.currentDevice else { return }
+            
+            let clampedBias = min(max(bias, device.minExposureTargetBias), device.maxExposureTargetBias)
+            
+            do {
+                try device.lockForConfiguration()
+                device.setExposureTargetBias(clampedBias)
+                device.unlockForConfiguration()
+            } catch {
+                print("CameraService: Failed to adjust exposure bias - \(error)")
+            }
+        }
+    }
+    
     func startRunning() {
         startMotionUpdates()
         

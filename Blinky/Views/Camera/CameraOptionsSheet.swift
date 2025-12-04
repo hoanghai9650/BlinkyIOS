@@ -11,6 +11,7 @@ struct CameraOptionsSheet: View {
     @Binding var storeLocation: Bool
     @Binding var showGrid: Bool
     @Binding var whiteBalancePreset: CameraSettingsService.WhiteBalancePreset
+    var namespace: Namespace.ID
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -103,13 +104,6 @@ struct CameraOptionsSheet: View {
             
             Spacer()
         }
-        .background(
-            Color.secondaryBackground
-                .clipShape(
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                )
-                .ignoresSafeArea(edges: .bottom)
-        )
         .presentationDetents([.height(380)])
         .presentationDragIndicator(.hidden)
         .presentationBackground(.clear)
@@ -189,15 +183,24 @@ struct WhiteBalancePresetButton: View {
 
 // MARK: - Preview
 
-#Preview {
-    ZStack {
-        Color.background.ignoresSafeArea()
-        
-        CameraOptionsSheet(
-            storeLocation: .constant(true),
-            showGrid: .constant(false),
-            whiteBalancePreset: .constant(.auto)
-        )
+struct CameraOptionsSheetPreview: View {
+    @Namespace private var namespace
+    
+    var body: some View {
+        ZStack {
+            Color.background.ignoresSafeArea()
+            
+            CameraOptionsSheet(
+                storeLocation: .constant(true),
+                showGrid: .constant(false),
+                whiteBalancePreset: .constant(.auto),
+                namespace: namespace
+            )
+        }
     }
+}
+
+#Preview {
+    CameraOptionsSheetPreview()
 }
 
