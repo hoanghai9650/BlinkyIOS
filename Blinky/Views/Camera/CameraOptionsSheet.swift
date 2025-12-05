@@ -2,7 +2,7 @@
 //  CameraOptionsSheet.swift
 //  Blinky
 //
-//  Options menu: location toggle, grid toggle, white balance presets
+//  Options menu: location toggle, grid toggle, level indicator toggle
 //
 
 import SwiftUI
@@ -10,7 +10,7 @@ import SwiftUI
 struct CameraOptionsSheet: View {
     @Binding var storeLocation: Bool
     @Binding var showGrid: Bool
-    @Binding var whiteBalancePreset: CameraSettingsService.WhiteBalancePreset
+    @Binding var showLevelIndicator: Bool
     var namespace: Namespace.ID
     @Environment(\.dismiss) private var dismiss
     
@@ -61,42 +61,13 @@ struct CameraOptionsSheet: View {
                 .background(Color.white.opacity(0.05))
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 
-                // White Balance
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "circle.lefthalf.filled")
-                            .font(.system(size: 18))
-                            .foregroundStyle(Color.icon)
-                            .frame(width: 24)
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("White Balance")
-                                .font(.subheadline)
-                                .foregroundStyle(.white)
-                            
-                            Text("Color temperature preset")
-                                .font(.caption)
-                                .foregroundStyle(.white.opacity(0.5))
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 14)
-                    
-                    // White Balance Picker
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 16) {
-                            ForEach(CameraSettingsService.WhiteBalancePreset.allCases) { preset in
-                                WhiteBalancePresetButton(
-                                    preset: preset,
-                                    isSelected: whiteBalancePreset == preset,
-                                    action: { whiteBalancePreset = preset }
-                                )
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                    }
-                    .padding(.bottom, 14)
-                }
+                // Level Indicator
+                OptionToggleRow(
+                    icon: "level",
+                    title: "Level Indicator",
+                    subtitle: "Helps keep camera horizontal or vertical",
+                    isOn: $showLevelIndicator
+                )
                 .background(Color.white.opacity(0.05))
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
@@ -104,7 +75,7 @@ struct CameraOptionsSheet: View {
             
             Spacer()
         }
-        .presentationDetents([.height(380)])
+        .presentationDetents([.height(320)])
         .presentationDragIndicator(.hidden)
         .presentationBackground(.clear)
     }
@@ -146,41 +117,6 @@ struct OptionToggleRow: View {
     }
 }
 
-// MARK: - White Balance Preset Button
-
-struct WhiteBalancePresetButton: View {
-    let preset: CameraSettingsService.WhiteBalancePreset
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                Image(systemName: preset.icon)
-                    .font(.system(size: 18))
-                    .foregroundStyle(isSelected ? .white : Color.icon)
-                    .frame(width: 48, height: 48)
-                    .background(
-                        Circle()
-                            .fill(isSelected ? Color.primary : Color.white.opacity(0.08))
-                    )
-                    .overlay(
-                        Circle()
-                            .strokeBorder(isSelected ? Color.primary : Color.white.opacity(0.1), lineWidth: 1)
-                    )
-                
-                Text(preset.rawValue)
-                    .font(.caption2)
-                    .fontWeight(isSelected ? .semibold : .regular)
-                    .foregroundStyle(isSelected ? .white : .white.opacity(0.6))
-                    .lineLimit(1)
-            }
-            .frame(width: 56)
-        }
-        .buttonStyle(.plain)
-    }
-}
-
 // MARK: - Preview
 
 struct CameraOptionsSheetPreview: View {
@@ -193,7 +129,7 @@ struct CameraOptionsSheetPreview: View {
             CameraOptionsSheet(
                 storeLocation: .constant(true),
                 showGrid: .constant(false),
-                whiteBalancePreset: .constant(.auto),
+                showLevelIndicator: .constant(true),
                 namespace: namespace
             )
         }

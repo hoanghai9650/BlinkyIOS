@@ -24,7 +24,6 @@ enum RootPage: Int, Identifiable, CaseIterable {
 
 struct RootPagerView: View {
     @State private var currentPage: RootPage = .library
-    @State private var isCameraActive = false
     @Namespace private var zoomTransition
     @Environment(\.modelContext) private var modelContext
     @State private var safeAreaInsets: EdgeInsets = .init()
@@ -44,15 +43,13 @@ struct RootPagerView: View {
                     )
                     .tag(RootPage.library)
                     
-                    CameraView(isActive: isCameraActive)
+                    CameraView(isActive: currentPage == .camera)
                         .tag(RootPage.camera)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .ignoresSafeArea()
                 .background(Color.background.ignoresSafeArea())
                 .onAppear {
-                    // Capture safe area once on appear
-//                    safeAreaInsets = geo.safeAreaInsets
                     UIScrollView.appearance().contentInsetAdjustmentBehavior = .never
                     UIScrollView.appearance().automaticallyAdjustsScrollIndicatorInsets = false
                 }
@@ -67,23 +64,9 @@ struct RootPagerView: View {
                         modelContext.delete(asset)
                     }
                 )
-//                .navigationBarBackButtonHidden(true)
-//                .toolbarVisibility(.hidden, for: .navigationBar)
-            }
-            .onChange(of: currentPage) { _, newPage in
-                updateCameraActivity(for: newPage)
-            }
-            .onAppear {
-                updateCameraActivity(for: currentPage)
             }
         }
    
-    }
-    
-    private func updateCameraActivity(for page: RootPage) {
-        withAnimation(.easeInOut(duration: 0.15)) {
-            isCameraActive = page == .camera
-        }
     }
 }
 

@@ -17,6 +17,7 @@ struct CameraView: View {
     
     @State private var showFilterSheet = false
     @State private var showOptionsSheet = false
+    @State private var showCapturePreview = false
     
     @Namespace private var sheetAnimation
     @Namespace private var filterNameSpace
@@ -55,19 +56,26 @@ struct CameraView: View {
                     }
                 }
             }
-            .onAppear {
-                viewModel.configureCamera()
+            .task(id: isActive) {
+                // Fires on initial render AND when isActive changes
                 if isActive {
-                    viewModel.startSession()
-                }
-                locationService.requestAccessIfNeeded()
-                locationService.refreshLocation()
-            }
-            .onChange(of: isActive) { active in
-                if active {
-                    viewModel.startSession()
+                    // Configure camera on first activation (loads services in background)
+                    viewModel.configureCamera()
+                    locationService.requestAccessIfNeeded()
+                    locationService.refreshLocation()
+                    
+                    // If camera already ready (returning to camera), start session immediately
+                    if viewModel.isCameraReady {
+                        viewModel.startSession()
+                    }
                 } else {
                     viewModel.stopSession()
+                }
+            }
+            .onChange(of: viewModel.isCameraReady) { _, ready in
+                // Start session when camera becomes ready (first time load)
+                if ready && isActive {
+                    viewModel.startSession()
                 }
             }
             .onDisappear {
@@ -84,7 +92,7 @@ struct CameraView: View {
                 CameraOptionsSheet(
                     storeLocation: $viewModel.storeLocation,
                     showGrid: $viewModel.showGrid,
-                    whiteBalancePreset: $viewModel.whiteBalancePreset,
+                    showLevelIndicator: $viewModel.showLevelIndicator,
                     namespace: sheetAnimation
                 ).navigationTransition(
                     .zoom(sourceID: "optionsSheet", in:  sheetAnimation)
@@ -164,44 +172,65 @@ struct CameraView: View {
         let previewHeight = previewWidth * 1.2
         
         return ZStack {
-            CameraPreviewView(
-                session: viewModel.session,
-                onFocusTap: { tapInfo in
-                    // tapInfo contains properly converted device coordinates + original view coordinates
-                    
-                    // If currently locked, unlock first
-                    if viewModel.isFocusLocked {
-                        viewModel.dismissFocus()
+            // Black background while camera is loading
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(Color.black)
+                .frame(width: previewWidth, height: previewHeight)
+            
+            // Camera preview - only when ready
+            if viewModel.isCameraReady {
+                CameraPreviewView(
+                    session: viewModel.session,
+                    onFocusTap: { tapInfo in
+                        // tapInfo contains properly converted device coordinates + original view coordinates
+                        
+                        // If currently locked, unlock first
+                        if viewModel.isFocusLocked {
+                            viewModel.dismissFocus()
+                        }
+                        
+                        // Store the view position for indicator display (original tap location)
+                        focusIndicatorPosition = tapInfo.viewPoint
+                        
+                        // Focus at the properly converted device coordinates
+                        viewModel.focusAt(tapInfo.devicePoint)
+                    },
+                    onLongPress: { devicePoint in
+                        // Long press - lock focus and exposure
+                        let generator = UIImpactFeedbackGenerator(style: .medium)
+                        generator.impactOccurred()
+                        
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                            viewModel.lockFocusAndExposure()
+                        }
                     }
-                    
-                    // Store the view position for indicator display (original tap location)
-                    focusIndicatorPosition = tapInfo.viewPoint
-                    
-                    // Focus at the properly converted device coordinates
-                    viewModel.focusAt(tapInfo.devicePoint)
-                },
-                onLongPress: { devicePoint in
-                    // Long press - lock focus and exposure
-                    let generator = UIImpactFeedbackGenerator(style: .medium)
-                    generator.impactOccurred()
-                    
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                        viewModel.lockFocusAndExposure()
-                    }
-                }
-            )
-            .frame(width: previewWidth, height: previewHeight)
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
-            )
+                )
+                .frame(width: previewWidth, height: previewHeight)
+                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .transition(.opacity.animation(.easeIn(duration: 0.3)))
+            } else {
+                // Loading indicator
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    .scaleEffect(1.2)
+            }
+            
+            // Border overlay
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                .frame(width: previewWidth, height: previewHeight)
             
             // Grid overlay
             if viewModel.showGrid {
                 GridOverlayView()
                     .frame(width: previewWidth, height: previewHeight)
                     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                    .allowsHitTesting(false)
+            }
+            
+            // Level indicator overlay
+            if viewModel.showLevelIndicator {
+                LevelIndicatorView(motionManager: viewModel.levelMotionManager)
                     .allowsHitTesting(false)
             }
             
@@ -319,7 +348,7 @@ struct CameraView: View {
     
     /// Check if any option has been changed from default
     private var isOptionsActive: Bool {
-        viewModel.showGrid || !viewModel.storeLocation || viewModel.whiteBalancePreset != .auto
+        viewModel.showGrid || !viewModel.storeLocation || viewModel.showLevelIndicator
     }
     
     // MARK: - Control Wheel Section
@@ -424,7 +453,8 @@ struct CameraView: View {
     
     private var lastCaptureThumbnail: some View {
         Group {
-            if let asset = viewModel.lastSavedAsset,
+            if showCapturePreview,
+               let asset = viewModel.lastSavedAsset,
                let image = PhotoImageProvider.image(at: asset.thumbnailURL) {
                 Image(uiImage: image)
                     .resizable()
@@ -435,6 +465,21 @@ struct CameraView: View {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
                             .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
                     )
+                    .transition(.asymmetric(
+                        insertion: .scale.combined(with: .opacity),
+                        removal: .move(edge: .trailing).combined(with: .opacity)
+                    ))
+            }
+        }
+        .animation(.easeOut(duration: 0.3), value: showCapturePreview)
+        .onChange(of: viewModel.lastSavedAsset) { _, newAsset in
+            if newAsset != nil {
+                showCapturePreview = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        showCapturePreview = false
+                    }
+                }
             }
         }
     }
