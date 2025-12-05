@@ -40,7 +40,7 @@ final class CameraViewModel: ObservableObject {
     
     // MARK: - Camera Settings
     
-    @Published var selectedLens: LensProfile = .standard
+    @Published var selectedLens: LensProfile = .wide
     @Published var selectedFilter: FilterLUT = .none
     
     // MARK: - Active Control Selection
@@ -79,6 +79,10 @@ final class CameraViewModel: ObservableObject {
     @Published var showFocusIndicator: Bool = false
     
     private var focusHideTask: Task<Void, Never>?
+    
+    // MARK: - Macro Mode
+    
+    @Published var isMacroEnabled: Bool = false
     
     // MARK: - Services
     
@@ -161,6 +165,22 @@ final class CameraViewModel: ObservableObject {
     // MARK: - Setup
     
     private func setupBindings() {
+        // Apply macro mode changes - uses ultra-wide camera with 2x zoom
+        $isMacroEnabled
+            .dropFirst()
+            .sink { [weak self] enabled in
+                guard let self else { return }
+                if enabled {
+                    // Macro mode: ultra-wide camera with 2x zoom (cropped)
+                    self.cameraService.setMacroMode(true)
+                } else {
+                    // Exit macro and restore to selected lens
+                    self.cameraService.setMacroMode(false)
+                    self.cameraService.setZoomFactor(self.selectedLens.zoomFactor, animated: true)
+                }
+            }
+            .store(in: &cancellables)
+        
         // Apply exposure changes
         $exposureValue
             .dropFirst()
@@ -207,11 +227,16 @@ final class CameraViewModel: ObservableObject {
             }
             .store(in: &cancellables)
         
-        // Apply lens zoom changes
+        // Apply lens zoom changes (and disable macro when lens is manually selected)
         $selectedLens
             .dropFirst()
             .sink { [weak self] lens in
-                self?.cameraService.setZoomFactor(lens.zoomFactor, animated: true)
+                guard let self else { return }
+                // Disable macro mode when manually selecting a lens
+                if self.isMacroEnabled {
+                    self.isMacroEnabled = false
+                }
+                self.cameraService.setZoomFactor(lens.zoomFactor, animated: true)
             }
             .store(in: &cancellables)
     }
@@ -315,6 +340,10 @@ final class CameraViewModel: ObservableObject {
     
     func toggleFlash() {
         isFlashEnabled.toggle()
+    }
+    
+    func toggleMacro() {
+        isMacroEnabled.toggle()
     }
     
     // MARK: - Focus & Exposure Control

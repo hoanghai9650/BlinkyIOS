@@ -10,7 +10,7 @@ import SwiftUI
 struct CameraControlButton: View {
     let icon: String
     let isSelected: Bool
-    var isActive: Bool = false  // Glow when value is set (not auto/default)
+    var isActive: Bool = false
     let action: () -> Void
     
     private let size: CGFloat = 48
@@ -28,23 +28,14 @@ struct CameraControlButton: View {
                 .overlay(
                     Circle()
                         .strokeBorder(
-                            isSelected ? Color.primary : (isActive ? Color.primary.opacity(0.6) : Color.white.opacity(0.15)),
-                            lineWidth: isActive && !isSelected ? 2 : 1.5
+                            isSelected ? Color.primary : (isActive ? Color.primary.opacity(0.5) : Color.white.opacity(0.15)),
+                            lineWidth: 1.5
                         )
                 )
-                .shadow(
-                    color: isActive && !isSelected ? Color.primary.opacity(0.4) : .clear,
-                    radius: 10,
-                    x: 0,
-                    y: 5
-                )
-                .glassEffect(.regular.interactive())
         }
         .buttonStyle(.plain)
         .scaleEffect(isSelected ? 1.05 : 1.0)
-
         .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isSelected)
-        .animation(.easeInOut(duration: 0.2), value: isActive)
     }
 }
 
@@ -192,78 +183,122 @@ struct LensPillButton: View {
     }
 }
 
+// MARK: - Macro Button
+
+struct MacroButton: View {
+    let isActive: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "camera.macro")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(isActive ? Color.gold : .white.opacity(0.8))
+                .frame(width: 32, height: 32)
+                .background(
+                    Circle()
+                        .fill(isActive ? Color.gold.opacity(0.2) : Color.black.opacity(0.4))
+                        .background(
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                        )
+                )
+                .overlay(
+                    Circle()
+                        .strokeBorder(isActive ? Color.gold : Color.white.opacity(0.2), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 // MARK: - Expandable Lens Selector (Overlay on Camera)
 
 struct ExpandableLensSelector: View {
     @Binding var selectedLens: LensProfile
+    @Binding var isMacroEnabled: Bool
+    var onMacroToggle: () -> Void
     @State private var isExpanded: Bool = false
     
     var body: some View {
-        HStack(spacing: 6) {
-            if isExpanded {
-                // Show all lens options
-                ForEach(LensProfile.allCases) { lens in
-                    LensPillButton(
-                        lens: lens,
-                        isSelected: selectedLens == lens,
-                        action: {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                selectedLens = lens
-                                isExpanded = false
-                            }
-                        }
-                    )
-                    .transition(.scale.combined(with: .opacity))
+        HStack(spacing: 8) {
+            // Macro button - hidden when lens options expanded
+            if !isExpanded {
+                MacroButton(isActive: isMacroEnabled) {
+                    onMacroToggle()
                 }
-            } else {
-                // Show only selected lens with zoom indicator
-                Button {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        isExpanded = true
+                .transition(.scale.combined(with: .opacity))
+            }
+            
+            // Lens selector
+            HStack(spacing: 6) {
+                if isExpanded {
+                    // Show all lens options
+                    ForEach(LensProfile.allCases) { lens in
+                        LensPillButton(
+                            lens: lens,
+                            isSelected: selectedLens == lens && !isMacroEnabled,
+                            action: {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                    selectedLens = lens
+                                    isExpanded = false
+                                }
+                            }
+                        )
+                        .transition(.scale.combined(with: .opacity))
                     }
-                } label: {
-                    HStack(spacing: 6) {
-                        Text(selectedLens.title)
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
-                        
-                        // Zoom factor indicator
-                        Text(zoomLabel)
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.6))
-                        
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.5))
+                } else {
+                    // Show only selected lens with zoom indicator
+                    Button {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            isExpanded = true
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Text(isMacroEnabled ? "Macro" : selectedLens.title)
+                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                            
+                            // Zoom factor indicator
+                            Text(currentZoomLabel)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.6))
+                            
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.5))
+                        }
+                        .foregroundStyle(isMacroEnabled ? Color.gold : .white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule()
+                                .fill(Color.black.opacity(0.5))
+                                .background(
+                                    Capsule()
+                                        .fill(.ultraThinMaterial)
+                                )
+                        )
                     }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(
+                Group {
+                    if isExpanded {
                         Capsule()
-                            .fill(Color.black.opacity(0.5))
+                            .fill(Color.black.opacity(0.6))
                             .background(
                                 Capsule()
                                     .fill(.ultraThinMaterial)
                             )
-                    )
+                    }
                 }
-                .buttonStyle(.plain)
-            }
+            )
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(
-            Group {
-                if isExpanded {
-                    Capsule()
-                        .fill(Color.black.opacity(0.6))
-                        .background(
-                            Capsule()
-                                .fill(.ultraThinMaterial)
-                        )
-                }
-            }
-        )
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isMacroEnabled)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isExpanded)
         .onTapGesture { } // Prevent tap-through
         .simultaneousGesture(
             TapGesture()
@@ -273,7 +308,10 @@ struct ExpandableLensSelector: View {
         )
     }
     
-    private var zoomLabel: String {
+    private var currentZoomLabel: String {
+        if isMacroEnabled {
+            return "2x"
+        }
         let factor = selectedLens.zoomFactor
         if factor < 1 {
             return String(format: "%.1fx", factor)
@@ -310,7 +348,11 @@ struct ExpandableLensSelector: View {
             }
             
             // Expandable lens selector
-            ExpandableLensSelector(selectedLens: .constant(.standard))
+            ExpandableLensSelector(
+                selectedLens: .constant(.standard),
+                isMacroEnabled: .constant(false),
+                onMacroToggle: {}
+            )
         }
     }
 }
