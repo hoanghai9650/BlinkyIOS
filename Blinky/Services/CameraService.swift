@@ -15,12 +15,25 @@ enum CameraServiceError: Error {
     case invalidImageData
 }
 
+/// Camera type for switching between physical cameras
+enum CameraType {
+    case ultraWide  // 0.5x - 13mm
+    case wide       // 1.0x+ - 24mm and digital zoom
+    case telephoto  // For 100mm if available
+}
+
 final class CameraService: NSObject {
     let session = AVCaptureSession()
     private let sessionQueue = DispatchQueue(label: "com.blinky.camera.session")
     private let photoOutput = AVCapturePhotoOutput()
     private var captureCompletion: ((Result<Data, Error>) -> Void)?
     private(set) var currentDevice: AVCaptureDevice?
+    private var currentCameraType: CameraType = .wide
+    
+    // Available cameras
+    private var ultraWideCamera: AVCaptureDevice?
+    private var wideCamera: AVCaptureDevice?
+    private var telephotoCamera: AVCaptureDevice?
     
     // Core Motion for accurate device orientation (works even if UI is locked to portrait)
     private let motionManager = CMMotionManager()
@@ -29,6 +42,31 @@ final class CameraService: NSObject {
     override init() {
         super.init()
         session.sessionPreset = .photo
+        discoverCameras()
+    }
+    
+    /// Discover all available back cameras
+    private func discoverCameras() {
+        let discoverySession = AVCaptureDevice.DiscoverySession(
+            deviceTypes: [.builtInUltraWideCamera, .builtInWideAngleCamera, .builtInTelephotoCamera],
+            mediaType: .video,
+            position: .back
+        )
+        
+        for device in discoverySession.devices {
+            switch device.deviceType {
+            case .builtInUltraWideCamera:
+                ultraWideCamera = device
+            case .builtInWideAngleCamera:
+                wideCamera = device
+            case .builtInTelephotoCamera:
+                telephotoCamera = device
+            default:
+                break
+            }
+        }
+        
+        print("CameraService: Discovered cameras - UltraWide: \(ultraWideCamera != nil), Wide: \(wideCamera != nil), Telephoto: \(telephotoCamera != nil)")
     }
     
     func configureSession() {
@@ -36,7 +74,8 @@ final class CameraService: NSObject {
             self.session.beginConfiguration()
             defer { self.session.commitConfiguration() }
             
-            guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
+            // Start with wide-angle camera (24mm / 1.0x)
+            guard let device = self.wideCamera,
                   let input = try? AVCaptureDeviceInput(device: device),
                   self.session.canAddInput(input) else {
                 DispatchQueue.main.async {
@@ -47,6 +86,7 @@ final class CameraService: NSObject {
             self.session.inputs.forEach { self.session.removeInput($0) }
             self.session.addInput(input)
             self.currentDevice = device
+            self.currentCameraType = .wide
             
             guard self.session.canAddOutput(self.photoOutput) else {
                 DispatchQueue.main.async {
@@ -59,26 +99,128 @@ final class CameraService: NSObject {
         }
     }
     
+    /// Switch to a specific camera type
+    private func switchToCamera(_ type: CameraType) {
+        let targetDevice: AVCaptureDevice?
+        
+        switch type {
+        case .ultraWide:
+            targetDevice = ultraWideCamera
+        case .wide:
+            targetDevice = wideCamera
+        case .telephoto:
+            targetDevice = telephotoCamera ?? wideCamera // Fall back to wide if no telephoto
+        }
+        
+        guard let device = targetDevice, device != currentDevice else { return }
+        
+        do {
+            let newInput = try AVCaptureDeviceInput(device: device)
+            
+            session.beginConfiguration()
+            
+            // Remove existing input
+            session.inputs.forEach { session.removeInput($0) }
+            
+            // Add new input
+            if session.canAddInput(newInput) {
+                session.addInput(newInput)
+                currentDevice = device
+                currentCameraType = type
+                print("CameraService: Switched to \(type) camera")
+            }
+            
+            session.commitConfiguration()
+        } catch {
+            print("CameraService: Failed to switch camera - \(error)")
+        }
+    }
+    
+    /// Sets zoom factor with automatic camera switching:
+    /// - 0.5x: Ultra-wide camera (13mm)
+    /// - 1.0x-3.5x: Wide camera with digital zoom (24mm-50mm)
+    /// - 4.0x+: Telephoto if available, otherwise wide with digital zoom (100mm)
     func setZoomFactor(_ factor: CGFloat, animated: Bool = true) {
         sessionQueue.async {
-            guard let device = self.currentDevice else { return }
-            
-            do {
-                try device.lockForConfiguration()
+            // Determine which camera to use based on zoom factor
+            if factor < 1.0 {
+                // Ultra-wide camera (0.5x = 13mm)
+                if self.currentCameraType != .ultraWide && self.ultraWideCamera != nil {
+                    self.switchToCamera(.ultraWide)
+                }
+                // Ultra-wide is already at its native FOV, set zoom to 1.0
+                self.applyZoom(1.0, animated: animated)
                 
-                let maxZoom = min(device.activeFormat.videoMaxZoomFactor, 10.0)
-                let clampedFactor = min(max(factor, 1.0), maxZoom)
-                
-                if animated {
-                    device.ramp(toVideoZoomFactor: clampedFactor, withRate: 8.0)
+            } else if factor >= 4.0 {
+                // 100mm - use telephoto if available
+                if self.telephotoCamera != nil {
+                    if self.currentCameraType != .telephoto {
+                        self.switchToCamera(.telephoto)
+                    }
+                    // Calculate zoom relative to telephoto (typically 3x optical)
+                    // For 4.2x total, if tele is 3x, we need 4.2/3 = 1.4x digital zoom on tele
+                    let teleZoom = factor / 3.0
+                    self.applyZoom(teleZoom, animated: animated)
                 } else {
-                    device.videoZoomFactor = clampedFactor
+                    // No telephoto - use wide with digital zoom
+                    if self.currentCameraType != .wide {
+                        self.switchToCamera(.wide)
+                    }
+                    self.applyZoom(factor, animated: animated)
                 }
                 
-                device.unlockForConfiguration()
-            } catch {
-                print("CameraService: Failed to set zoom - \(error)")
+            } else {
+                // 1.0x - 3.5x: Wide camera with digital zoom (24mm, 35mm, 50mm)
+                if self.currentCameraType != .wide {
+                    self.switchToCamera(.wide)
+                }
+                self.applyZoom(factor, animated: animated)
             }
+        }
+    }
+    
+    /// Apply zoom factor to current device
+    private func applyZoom(_ factor: CGFloat, animated: Bool) {
+        guard let device = currentDevice else { return }
+        
+        do {
+            try device.lockForConfiguration()
+            
+            let maxZoom = min(device.activeFormat.videoMaxZoomFactor, 10.0)
+            let minZoom = device.minAvailableVideoZoomFactor
+            let clampedFactor = min(max(factor, minZoom), maxZoom)
+            
+            if animated {
+                device.ramp(toVideoZoomFactor: clampedFactor, withRate: 8.0)
+            } else {
+                device.videoZoomFactor = clampedFactor
+            }
+            
+            device.unlockForConfiguration()
+        } catch {
+            print("CameraService: Failed to set zoom - \(error)")
+        }
+    }
+    
+    /// Enable/disable macro mode (ultra-wide camera with 2x zoom)
+    func setMacroMode(_ enabled: Bool) {
+        sessionQueue.async {
+            if enabled {
+                // Macro: switch to ultra-wide and apply 2x zoom
+                if self.ultraWideCamera != nil {
+                    if self.currentCameraType != .ultraWide {
+                        self.switchToCamera(.ultraWide)
+                    }
+                    self.applyZoom(2.0, animated: true)
+                } else {
+                    // No ultra-wide available, fall back to wide with 2x
+                    if self.currentCameraType != .wide {
+                        self.switchToCamera(.wide)
+                    }
+                    self.applyZoom(2.0, animated: true)
+                }
+            }
+            // Note: when disabled, ViewModel will call setZoomFactor to restore lens
         }
     }
     

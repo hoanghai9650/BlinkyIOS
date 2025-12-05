@@ -264,8 +264,12 @@ struct CameraView: View {
                 Spacer()
                 
                 // Lens selector overlay at bottom of camera view
-                ExpandableLensSelector(selectedLens: $viewModel.selectedLens)
-                    .padding(.bottom, 12)
+                ExpandableLensSelector(
+                    selectedLens: $viewModel.selectedLens,
+                    isMacroEnabled: $viewModel.isMacroEnabled,
+                    onMacroToggle: { viewModel.toggleMacro() }
+                )
+                .padding(.bottom, 12)
             }
             .padding(12)
             .allowsHitTesting(true)

@@ -81,14 +81,19 @@ enum LensProfile: String, CaseIterable, Identifiable {
         "\(focalLength)"
     }
     
-    /// Zoom factor relative to standard 24mm lens (1.0x)
+    /// Zoom factor relative to 24mm wide lens (1.0x)
+    /// - 13mm: 0.5x = Ultra-wide camera
+    /// - 24mm: 1.0x = Wide angle camera (main)
+    /// - 35mm: 1.5x = Digital zoom on wide
+    /// - 50mm: 2.1x = Telephoto or digital zoom
+    /// - 100mm: 4.2x = Telephoto or digital zoom
     var zoomFactor: CGFloat {
         switch self {
-        case .ultraWide: return 0.5   // Ultra wide angle
-        case .wide: return 1.0        // Default (1x)
-        case .standard: return 1.5    // ~35mm equivalent
-        case .portrait: return 2.0    // 2x zoom
-        case .telephoto: return 4.0   // 4x zoom (100mm = ~4x of 24mm)
+        case .ultraWide: return 0.5   // Ultra-wide camera
+        case .wide: return 1.0        // Wide angle camera (main)
+        case .standard: return 1.5    // 1.5x on wide
+        case .portrait: return 2.1    // 2.1x - uses tele if available
+        case .telephoto: return 4.2   // 4.2x - uses tele if available
         }
     }
 }
