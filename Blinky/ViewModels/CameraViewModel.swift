@@ -37,6 +37,7 @@ final class CameraViewModel: ObservableObject {
     @Published private(set) var session: AVCaptureSession?
     @Published private(set) var captureState: CaptureState = .idle
     @Published private(set) var lastSavedAsset: PhotoAsset?
+    @Published private(set) var isCameraReady: Bool = false
     
     // MARK: - Camera Settings
     
@@ -65,7 +66,7 @@ final class CameraViewModel: ObservableObject {
     
     @Published var storeLocation: Bool = true
     @Published var showGrid: Bool = false
-    @Published var whiteBalancePreset: CameraSettingsService.WhiteBalancePreset = .auto
+    @Published var showLevelIndicator: Bool = false
     
     // MARK: - Flash
     
@@ -84,14 +85,24 @@ final class CameraViewModel: ObservableObject {
     
     @Published var isMacroEnabled: Bool = false
     
-    // MARK: - Services
+    // MARK: - Services (all lazy to avoid blocking UI)
     
-    private let cameraService = CameraService()
-    private let settingsService = CameraSettingsService()
-    private let processingService = PhotoProcessingService()
-    private let storageService = PhotoStorageService()
+    private var cameraService: CameraService?
+    private var settingsService: CameraSettingsService?
+    private lazy var processingService = PhotoProcessingService()
+    private lazy var storageService = PhotoStorageService()
+    
+    // Level indicator motion manager - lazy initialized
+    private var _levelMotionManager: LevelMotionManager?
+    var levelMotionManager: LevelMotionManager {
+        if _levelMotionManager == nil {
+            _levelMotionManager = LevelMotionManager()
+        }
+        return _levelMotionManager!
+    }
     
     private var cancellables = Set<AnyCancellable>()
+    private var isConfigured = false
     
     // MARK: - Computed Properties
     
@@ -158,8 +169,7 @@ final class CameraViewModel: ObservableObject {
     // MARK: - Init
     
     init() {
-        session = cameraService.session
-        setupBindings()
+        // Don't initialize heavy services here - defer to configureCamera()
     }
     
     // MARK: - Setup
@@ -172,11 +182,11 @@ final class CameraViewModel: ObservableObject {
                 guard let self else { return }
                 if enabled {
                     // Macro mode: ultra-wide camera with 2x zoom (cropped)
-                    self.cameraService.setMacroMode(true)
+                    self.cameraService?.setMacroMode(true)
                 } else {
                     // Exit macro and restore to selected lens
-                    self.cameraService.setMacroMode(false)
-                    self.cameraService.setZoomFactor(self.selectedLens.zoomFactor, animated: true)
+                    self.cameraService?.setMacroMode(false)
+                    self.cameraService?.setZoomFactor(self.selectedLens.zoomFactor, animated: true)
                 }
             }
             .store(in: &cancellables)
@@ -186,7 +196,7 @@ final class CameraViewModel: ObservableObject {
             .dropFirst()
             .filter { [weak self] _ in !(self?.isExposureAuto ?? true) }
             .sink { [weak self] value in
-                self?.settingsService.setExposureBias(Float(value))
+                self?.settingsService?.setExposureBias(Float(value))
             }
             .store(in: &cancellables)
         
@@ -195,7 +205,7 @@ final class CameraViewModel: ObservableObject {
             .dropFirst()
             .filter { [weak self] _ in !(self?.isTemperatureAuto ?? true) }
             .sink { [weak self] value in
-                self?.settingsService.setWhiteBalance(temperature: Float(value))
+                self?.settingsService?.setWhiteBalance(temperature: Float(value))
             }
             .store(in: &cancellables)
         
@@ -204,7 +214,7 @@ final class CameraViewModel: ObservableObject {
             .dropFirst()
             .filter { [weak self] _ in !(self?.isISOAuto ?? true) }
             .sink { [weak self] value in
-                self?.settingsService.setISO(Float(value))
+                self?.settingsService?.setISO(Float(value))
             }
             .store(in: &cancellables)
         
@@ -215,15 +225,7 @@ final class CameraViewModel: ObservableObject {
             .sink { [weak self] value in
                 guard let shutterValue = ShutterSpeedValue.allCases[safe: Int(value)] else { return }
                 let duration = CMTime(seconds: shutterValue.durationSeconds, preferredTimescale: 1000000)
-                self?.settingsService.setShutterSpeed(duration)
-            }
-            .store(in: &cancellables)
-        
-        // Apply white balance preset changes
-        $whiteBalancePreset
-            .dropFirst()
-            .sink { [weak self] preset in
-                self?.settingsService.applyWhiteBalancePreset(preset)
+                self?.settingsService?.setShutterSpeed(duration)
             }
             .store(in: &cancellables)
         
@@ -236,7 +238,7 @@ final class CameraViewModel: ObservableObject {
                 if self.isMacroEnabled {
                     self.isMacroEnabled = false
                 }
-                self.cameraService.setZoomFactor(lens.zoomFactor, animated: true)
+                self.cameraService?.setZoomFactor(lens.zoomFactor, animated: true)
             }
             .store(in: &cancellables)
     }
@@ -252,9 +254,9 @@ final class CameraViewModel: ObservableObject {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                     exposureValue = activeControl.defaultValue
                 }
-                settingsService.setAutoExposure()
+                settingsService?.setAutoExposure()
             } else {
-                settingsService.setExposureBias(Float(exposureValue))
+                settingsService?.setExposureBias(Float(exposureValue))
             }
         case .temperature:
             isTemperatureAuto.toggle()
@@ -262,9 +264,9 @@ final class CameraViewModel: ObservableObject {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                     temperatureValue = activeControl.defaultValue
                 }
-                settingsService.setAutoWhiteBalance()
+                settingsService?.setAutoWhiteBalance()
             } else {
-                settingsService.setWhiteBalance(temperature: Float(temperatureValue))
+                settingsService?.setWhiteBalance(temperature: Float(temperatureValue))
             }
         case .shutterSpeed:
             isShutterAuto.toggle()
@@ -272,10 +274,10 @@ final class CameraViewModel: ObservableObject {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                     shutterSpeedIndex = activeControl.defaultValue
                 }
-                settingsService.setAutoShutter()
+                settingsService?.setAutoShutter()
             } else if let shutterValue = ShutterSpeedValue.allCases[safe: Int(shutterSpeedIndex)] {
                 let duration = CMTime(seconds: shutterValue.durationSeconds, preferredTimescale: 1000000)
-                settingsService.setShutterSpeed(duration)
+                settingsService?.setShutterSpeed(duration)
             }
         case .iso:
             isISOAuto.toggle()
@@ -283,9 +285,9 @@ final class CameraViewModel: ObservableObject {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                     isoValue = activeControl.defaultValue
                 }
-                settingsService.setAutoISO()
+                settingsService?.setAutoISO()
             } else {
-                settingsService.setISO(Float(isoValue))
+                settingsService?.setISO(Float(isoValue))
             }
         }
     }
@@ -296,25 +298,25 @@ final class CameraViewModel: ObservableObject {
         case .exposure:
             if isExposureAuto {
                 isExposureAuto = false
-                settingsService.setExposureBias(Float(exposureValue))
+                settingsService?.setExposureBias(Float(exposureValue))
             }
         case .temperature:
             if isTemperatureAuto {
                 isTemperatureAuto = false
-                settingsService.setWhiteBalance(temperature: Float(temperatureValue))
+                settingsService?.setWhiteBalance(temperature: Float(temperatureValue))
             }
         case .shutterSpeed:
             if isShutterAuto {
                 isShutterAuto = false
                 if let shutterValue = ShutterSpeedValue.allCases[safe: Int(shutterSpeedIndex)] {
                     let duration = CMTime(seconds: shutterValue.durationSeconds, preferredTimescale: 1000000)
-                    settingsService.setShutterSpeed(duration)
+                    settingsService?.setShutterSpeed(duration)
                 }
             }
         case .iso:
             if isISOAuto {
                 isISOAuto = false
-                settingsService.setISO(Float(isoValue))
+                settingsService?.setISO(Float(isoValue))
             }
         }
     }
@@ -322,20 +324,38 @@ final class CameraViewModel: ObservableObject {
     // MARK: - Camera Control
     
     func configureCamera() {
-        cameraService.configureSession()
+        guard !isConfigured else { return }
+        isConfigured = true
         
-        // Configure settings service with camera device
-        if let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) {
-            settingsService.configure(with: device)
+        // Initialize camera services on background thread to avoid blocking UI
+        Task.detached(priority: .userInitiated) {
+            let camera = CameraService()
+            let settings = CameraSettingsService()
+            
+            camera.configureSession()
+            
+            // Configure settings service with camera device
+            if let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) {
+                settings.configure(with: device)
+            }
+            
+            // Update UI on main thread
+            await MainActor.run {
+                self.cameraService = camera
+                self.settingsService = settings
+                self.session = camera.session
+                self.setupBindings()
+                self.isCameraReady = true
+            }
         }
     }
     
     func startSession() {
-        cameraService.startRunning()
+        cameraService?.startRunning()
     }
     
     func stopSession() {
-        cameraService.stopRunning()
+        cameraService?.stopRunning()
     }
     
     func toggleFlash() {
@@ -356,8 +376,8 @@ final class CameraViewModel: ObservableObject {
         focusPoint = point
         showFocusIndicator = true
         focusExposureBias = 0.0
-        cameraService.focus(at: point)
-        cameraService.adjustExposureBias(0.0)
+        cameraService?.focus(at: point)
+        cameraService?.adjustExposureBias(0.0)
         
         // Schedule auto-hide after 3 seconds (if not locked and not dragging)
         scheduleFocusHide()
@@ -384,7 +404,7 @@ final class CameraViewModel: ObservableObject {
     /// Adjust exposure bias (works both focused and locked states)
     func adjustExposure(_ bias: Float) {
         focusExposureBias = min(max(bias, -3.0), 3.0)
-        cameraService.adjustExposureBias(focusExposureBias)
+        cameraService?.adjustExposureBias(focusExposureBias)
     }
     
     /// Long press (2 sec) to lock focus & exposure
@@ -393,9 +413,9 @@ final class CameraViewModel: ObservableObject {
         
         focusHideTask?.cancel()
         isFocusLocked = true
-        cameraService.focus(at: point)
-        cameraService.lockFocusAndExposure()
-        cameraService.adjustExposureBias(focusExposureBias)
+        cameraService?.focus(at: point)
+        cameraService?.lockFocusAndExposure()
+        cameraService?.adjustExposureBias(focusExposureBias)
     }
     
     /// Tap elsewhere to dismiss focus indicator or unlock
@@ -405,7 +425,7 @@ final class CameraViewModel: ObservableObject {
         if isFocusLocked {
             // Unlock
             isFocusLocked = false
-            cameraService.unlockFocusAndExposure()
+            cameraService?.unlockFocusAndExposure()
         }
         
         withAnimation(.easeOut(duration: 0.2)) {
@@ -416,6 +436,11 @@ final class CameraViewModel: ObservableObject {
     }
     
     func capture(modelContext: ModelContext, locationDescription: String?) {
+        guard let cameraService else {
+            captureState = .failure("Camera not ready")
+            return
+        }
+        
         captureState = .capturing
         
         let settings = AVCapturePhotoSettings()

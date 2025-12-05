@@ -385,10 +385,7 @@ final class CameraService: NSObject {
             guard self.captureCompletion == nil else { return }
             self.captureCompletion = completion
             
-            let captureSettings = settings
-            captureSettings.flashMode = .auto
-            
-            self.photoOutput.capturePhoto(with: captureSettings, delegate: self)
+            self.photoOutput.capturePhoto(with: settings, delegate: self)
         }
     }
 }

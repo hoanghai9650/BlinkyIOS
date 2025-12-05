@@ -233,8 +233,26 @@ struct ExpandableLensSelector: View {
             // Lens selector
             HStack(spacing: 6) {
                 if isExpanded {
-                    // Show all lens options
-                    ForEach(LensProfile.allCases) { lens in
+                    // Close button
+                    Button {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            isExpanded = false
+                        }
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.7))
+                            .frame(width: 28, height: 28)
+                            .background(
+                                Circle()
+                                    .fill(Color.white.opacity(0.15))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .transition(.scale.combined(with: .opacity))
+                    
+                    // Show all lens options with staggered animation
+                    ForEach(Array(LensProfile.allCases.enumerated()), id: \.element.id) { index, lens in
                         LensPillButton(
                             lens: lens,
                             isSelected: selectedLens == lens && !isMacroEnabled,
@@ -245,7 +263,13 @@ struct ExpandableLensSelector: View {
                                 }
                             }
                         )
-                        .transition(.scale.combined(with: .opacity))
+                        .scaleEffect(isExpanded ? 1 : 0.5)
+                        .opacity(isExpanded ? 1 : 0)
+                        .animation(
+                            .spring(response: 0.35, dampingFraction: 0.7)
+                            .delay(Double(index) * 0.05),
+                            value: isExpanded
+                        )
                     }
                 } else {
                     // Show only selected lens with zoom indicator
