@@ -9,7 +9,6 @@ import SwiftUI
 
 struct HoverView: View {
     let asset: PhotoAsset
-    let namespace: Namespace.ID
     let onClose: () -> Void
     let onDelete: () -> Void
     @State private var dragOffset: CGFloat = 0
@@ -21,7 +20,6 @@ struct HoverView: View {
             BlurView(style: .systemThinMaterial).ignoresSafeArea()
             VStack(spacing: 0) {
                 // Header with share button
-//                Color.clear
                 HStack {
                     Button(action: onClose) {
                         Image(systemName: "xmark")
@@ -43,18 +41,8 @@ struct HoverView: View {
                     VStack(spacing: 16) {
                         PolaroidView(
                             asset: asset,
-                            namespace: namespace,
                             onTap: onClose
                         )
-//                        .background(
-//                            GeometryReader { proxy in
-//                                Color.clear
-//                                    .preference(key: ViewWidthKey.self, value: proxy.size.width)
-//                            }
-//                        )
-//                        .onPreferenceChange(ViewWidthKey.self) { width in
-//                            polaroidWidth = width
-//                        }
                         .padding(.top, 4)
                         metadataCard
                     }
@@ -69,24 +57,6 @@ struct HoverView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .navigationBarHidden(true)
-//        .offset(y: dragOffset)
-//        .gesture(
-//            DragGesture()
-//                .onChanged { value in
-//                    if value.translation.height > 0 {
-//                        dragOffset = value.translation.height
-//                    }
-//                }
-//                .onEnded { value in
-//                    if value.translation.height > 120 {
-//                        handleClose()
-//                    } else {
-//                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-//                            dragOffset = 0
-//                        }
-//                    }
-//                }
-//        )
     }
     
     private func handleClose() {

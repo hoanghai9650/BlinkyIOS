@@ -23,7 +23,6 @@ enum GalleryTab: Int, Identifiable, CaseIterable {
 
 struct GalleryContainerView: View {
     var onCameraRequest: () -> Void = {}
-    let namespace: Namespace.ID
     let safeArea: EdgeInsets
     @State private var selection: GalleryTab = .gallery
     @State private var focusedAsset: PhotoAsset?
@@ -37,7 +36,6 @@ struct GalleryContainerView: View {
                 case .gallery:
                     GalleryView(
                         focusedAsset: $focusedAsset,
-                        namespace: namespace,
                         isScrolledToBottom: $isScrolledToBottom,
                         safeArea: safeArea
                     )
@@ -46,17 +44,17 @@ struct GalleryContainerView: View {
                     FolderView(isScrolledToBottom: $isScrolledToBottom, safeArea: safeArea)
                 }
             }
-            
+            customTabBarContent
             // Custom Tab Bar with linear blur
-            ScrollableFooter(
-                safeAreaBottom: safeArea.bottom,
-                isScrolled: isScrolledToBottom
-            ) {
-                customTabBarContent
-            }
-            .opacity(focusedAsset == nil ? 1 : 0)
-            .offset(y: focusedAsset == nil ? 0 : 100)
-            .animation(.spring(response: 0.35, dampingFraction: 0.9), value: focusedAsset)
+//            ScrollableFooter(
+//                safeAreaBottom: safeArea.bottom,
+//                isScrolled: isScrolledToBottom
+//            ) {
+//                
+//            }
+//            .opacity(focusedAsset == nil ? 1 : 0)
+//            .offset(y: focusedAsset == nil ? 0 : 100)
+//            .animation(.spring(response: 0.35, dampingFraction: 0.9), value: focusedAsset)
         }
         .background(Color.background)
     }
@@ -118,6 +116,5 @@ struct GalleryContainerView: View {
 }
 
 #Preview {
-    @Previewable @Namespace var namespace
-    GalleryContainerView(namespace: namespace, safeArea: EdgeInsets(top: 59, leading: 0, bottom: 34, trailing: 0))
+    GalleryContainerView(safeArea: EdgeInsets(top: 59, leading: 0, bottom: 34, trailing: 0))
 }

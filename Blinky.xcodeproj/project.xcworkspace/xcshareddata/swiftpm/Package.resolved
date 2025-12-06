@@ -1,5 +1,5 @@
 {
-  "originHash" : "a42f7fbfeabf07753186f2cd78937b461f1f471f120c12aef74806518511b911",
+  "originHash" : "52ebb96ad91197eea26c780905b4b5491773435b25ff915c7699f472fab5865f",
   "pins" : [
     {
       "identity" : "alamofire",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "513364f870f6bfc468f9d2ff0a95caccc10044c5",
         "version" : "5.10.2"
+      }
+    },
+    {
+      "identity" : "engine",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/nathantannar4/Engine",
+      "state" : {
+        "revision" : "8062b68c43373af4abf1695bb8aba86cc013ec9d",
+        "version" : "2.3.2"
       }
     },
     {
@@ -47,6 +56,15 @@
       }
     },
     {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-syntax",
+      "state" : {
+        "revision" : "4799286537280063c85a32f09884cfbca301b1a1",
+        "version" : "602.0.0"
+      }
+    },
+    {
       "identity" : "swiftuimasonry",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/ciaranrobrien/SwiftUIMasonry",
@@ -80,6 +98,15 @@
       "state" : {
         "revision" : "af76cf3ef710b6ca5f8c05f3a31307d44a3c5828",
         "version" : "5.0.2"
+      }
+    },
+    {
+      "identity" : "transmission",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/nathantannar4/Transmission",
+      "state" : {
+        "revision" : "ea6dfeb05a03fe780a96e6fa28c0884380603334",
+        "version" : "2.5.35"
       }
     }
   ],

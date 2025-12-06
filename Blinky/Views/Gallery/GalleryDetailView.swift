@@ -7,13 +7,12 @@
 
 import SwiftUI
 import SwiftData
+import Transmission
 
 struct GalleryDetailView: View {
     let asset: PhotoAsset
-    let namespace: Namespace.ID
     let onDelete: () -> Void
-    @Environment(\.dismiss) var dismiss
-    @State private var allowDismissalGesture: AllowedNavigationDismissalGestures = .none
+    @Environment(\.presentationCoordinator) private var coordinator
     
     var body: some View {
         
@@ -26,26 +25,10 @@ struct GalleryDetailView: View {
                     // Top Bar
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 24) {
-                            // Destination Image
-                            if let image = PhotoImageProvider.image(at: asset.originalURL) {
-                                let aspectRatio = image.size.width / image.size.height
-                                
-                                Image(uiImage: image)
-                                    .resizable()
-                                    .aspectRatio(aspectRatio, contentMode: .fit)
-                                    .frame(maxWidth: .infinity)
-                                    .navigationTransition(.zoom(sourceID: asset.id, in: namespace))
-                                    .shadow(color: Color.black.opacity(0.3), radius: 20, x: 0, y: 10)
-//                                    .padding(.top, 32)
-                                    .navigationAllowDismissalGestures(allowDismissalGesture)
-                                    .task {
-                                        Task {
-                                            try? await Task.sleep(for: .seconds(1))
-                                            allowDismissalGesture = .all
-                                        }
-                                    }
-                                   
-                            }
+                            // Destination Image - using async loading for smoother transitions
+                            AsyncPhotoImage(url: asset.originalURL, contentMode: .fit)
+                                .frame(maxWidth: .infinity)
+                                .shadow(color: Color.black.opacity(0.3), radius: 20, x: 0, y: 10)
                             
                             // Info Section
                             GlassEffectContainer(){
@@ -117,13 +100,6 @@ struct GalleryDetailView: View {
                         .padding(.bottom, 100) // Space for bottom bar
                     }
                 }
-//                .toolbar{
-//                    ToolbarItem(placement: .cancellationAction){
-//                        Button("Cancel", systemImage: "xmark"){
-//                            dismiss()
-//                        }
-//                    }
-//                }
                 
                 
                 // Bottom Action Bar
@@ -143,7 +119,10 @@ struct GalleryDetailView: View {
                                 .shadow(color: Color.primary.opacity(0.4), radius: 10, x: 0, y: 5)
                         }
                         
-                        actionButton(icon: "trash", action: onDelete, isDestructive: true)
+                        actionButton(icon: "trash", action: {
+                            onDelete()
+                            coordinator.dismiss()
+                        }, isDestructive: true)
                     }
                     .padding(.horizontal, 30)
                     .padding(.bottom, 16)
@@ -195,8 +174,6 @@ struct GalleryDetailView: View {
 }
 
 #Preview {
-    @Previewable @Namespace var namespace
-    
     // Create a temporary file URL for preview
     let documentsPath = FileManager.default.temporaryDirectory
     let imageURL = documentsPath.appendingPathComponent("preview_img.jpg")
@@ -221,7 +198,6 @@ struct GalleryDetailView: View {
     
     return GalleryDetailView(
         asset: sampleAsset,
-        namespace: namespace,
         onDelete: {
             print("Delete tapped")
         }

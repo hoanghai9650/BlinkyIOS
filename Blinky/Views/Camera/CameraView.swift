@@ -84,7 +84,7 @@ struct CameraView: View {
             .sheet(isPresented: $showFilterSheet) {
                 FilterSheetView(
                     selectedFilter: $viewModel.selectedFilter,
-                    namespace: sheetAnimation
+                    namespace: filterNameSpace
                     
                 ).navigationTransition(.zoom(sourceID: "filter", in:  filterNameSpace))
             }
