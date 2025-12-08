@@ -24,9 +24,8 @@ enum RootPage: Int, Identifiable, CaseIterable {
 
 struct RootPagerView: View {
     @State private var currentPage: RootPage = .library
-    @Namespace private var zoomTransition
-    @Environment(\.modelContext) private var modelContext
     @State private var safeAreaInsets: EdgeInsets = .init()
+    @Namespace private var galleryNamespace
     
     var body: some View {
         NavigationStack {
@@ -38,8 +37,8 @@ struct RootPagerView: View {
                                 currentPage = .camera
                             }
                         },
-                        namespace: zoomTransition,
-                        safeArea: safeAreaInsets
+                        safeArea: safeAreaInsets,
+                        galleryNamespace: galleryNamespace
                     )
                     .tag(RootPage.library)
                     
@@ -53,20 +52,8 @@ struct RootPagerView: View {
                     UIScrollView.appearance().contentInsetAdjustmentBehavior = .never
                     UIScrollView.appearance().automaticallyAdjustsScrollIndicatorInsets = false
                 }
-           
-            }
-
-            .navigationDestination(for: PhotoAsset.self) { asset in
-                GalleryDetailView(
-                    asset: asset,
-                    namespace: zoomTransition,
-                    onDelete: {
-                        modelContext.delete(asset)
-                    }
-                )
             }
         }
-   
     }
 }
 

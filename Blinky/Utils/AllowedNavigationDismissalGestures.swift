@@ -2,9 +2,8 @@
 //  AllowedNavigationDismissalGestures.swift
 //  Blinky
 //
-//  Created by MacOS on 24/11/25.
+//  Created by MacOS on 7/12/25.
 //
-
 
 import SwiftUI
 import UIKit

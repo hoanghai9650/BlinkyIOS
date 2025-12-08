@@ -23,13 +23,15 @@ enum GalleryTab: Int, Identifiable, CaseIterable {
 
 struct GalleryContainerView: View {
     var onCameraRequest: () -> Void = {}
-    let namespace: Namespace.ID
     let safeArea: EdgeInsets
+    let galleryNamespace: Namespace.ID
     @State private var selection: GalleryTab = .gallery
     @State private var focusedAsset: PhotoAsset?
     @State private var isScrolledToBottom: Bool = true
     
     var body: some View {
+        NavigationStack{
+
         ZStack(alignment: .bottom) {
             // Content
             Group {
@@ -37,28 +39,29 @@ struct GalleryContainerView: View {
                 case .gallery:
                     GalleryView(
                         focusedAsset: $focusedAsset,
-                        namespace: namespace,
                         isScrolledToBottom: $isScrolledToBottom,
-                        safeArea: safeArea
+                        safeArea: safeArea,
+                        galleryNamespace: galleryNamespace
                     )
                     
                 case .album:
                     FolderView(isScrolledToBottom: $isScrolledToBottom, safeArea: safeArea)
                 }
             }
-            
+            customTabBarContent
             // Custom Tab Bar with linear blur
-            ScrollableFooter(
-                safeAreaBottom: safeArea.bottom,
-                isScrolled: isScrolledToBottom
-            ) {
-                customTabBarContent
-            }
-            .opacity(focusedAsset == nil ? 1 : 0)
-            .offset(y: focusedAsset == nil ? 0 : 100)
-            .animation(.spring(response: 0.35, dampingFraction: 0.9), value: focusedAsset)
+//            ScrollableFooter(
+//                safeAreaBottom: safeArea.bottom,
+//                isScrolled: isScrolledToBottom
+//            ) {
+//                
+//            }
+//            .opacity(focusedAsset == nil ? 1 : 0)
+//            .offset(y: focusedAsset == nil ? 0 : 100)
+//            .animation(.spring(response: 0.35, dampingFraction: 0.9), value: focusedAsset)
         }
         .background(Color.background)
+     }
     }
     
     private var customTabBarContent: some View {
@@ -118,6 +121,9 @@ struct GalleryContainerView: View {
 }
 
 #Preview {
-    @Previewable @Namespace var namespace
-    GalleryContainerView(namespace: namespace, safeArea: EdgeInsets(top: 59, leading: 0, bottom: 34, trailing: 0))
+    @Previewable @Namespace var previewNamespace
+    GalleryContainerView(
+        safeArea: EdgeInsets(top: 59, leading: 0, bottom: 34, trailing: 0),
+        galleryNamespace: previewNamespace
+    )
 }

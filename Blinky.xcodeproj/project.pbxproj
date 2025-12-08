@@ -16,6 +16,7 @@
 		4E01BB412ECC6DEE007EA4D6 /* Motion in Frameworks */ = {isa = PBXBuildFile; productRef = 4E01BB402ECC6DEE007EA4D6 /* Motion */; };
 		4E01BB432ECC6DEE007EA4D6 /* SwiftUIPager in Frameworks */ = {isa = PBXBuildFile; productRef = 4E01BB422ECC6DEE007EA4D6 /* SwiftUIPager */; };
 		4E01BB452ECC6DEE007EA4D6 /* SwiftUIX in Frameworks */ = {isa = PBXBuildFile; productRef = 4E01BB442ECC6DEE007EA4D6 /* SwiftUIX */; };
+		4E6362432EE3D20C0080D714 /* Transmission in Frameworks */ = {isa = PBXBuildFile; productRef = 4E6362442EE3D20C0080D714 /* Transmission */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -73,6 +74,7 @@
 				4E01BB3D2ECC6DEE007EA4D6 /* Hero in Frameworks */,
 				4E01BB432ECC6DEE007EA4D6 /* SwiftUIPager in Frameworks */,
 				4E01BB352ECC6DEE007EA4D6 /* Kingfisher in Frameworks */,
+				4E6362432EE3D20C0080D714 /* Transmission in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -150,6 +152,7 @@
 				4E01BB402ECC6DEE007EA4D6 /* Motion */,
 				4E01BB422ECC6DEE007EA4D6 /* SwiftUIPager */,
 				4E01BB442ECC6DEE007EA4D6 /* SwiftUIX */,
+				4E6362442EE3D20C0080D714 /* Transmission */,
 			);
 			productName = Blinky;
 			productReference = 4E01BAFF2ECC6653007EA4D6 /* Blinky.app */;
@@ -242,6 +245,7 @@
 				4E01BB302ECC679F007EA4D6 /* XCRemoteSwiftPackageReference "Motion" */,
 				4E01BB312ECC67B6007EA4D6 /* XCRemoteSwiftPackageReference "SwiftUIPager" */,
 				4E01BB322ECC67D3007EA4D6 /* XCRemoteSwiftPackageReference "SwiftUIX" */,
+				4E6362422EE3D20C0080D714 /* XCRemoteSwiftPackageReference "Transmission" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 4E01BB002ECC6653007EA4D6 /* Products */;
@@ -700,6 +704,14 @@
 				minimumVersion = 0.2.4;
 			};
 		};
+		4E6362422EE3D20C0080D714 /* XCRemoteSwiftPackageReference "Transmission" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/nathantannar4/Transmission";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.35;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -747,6 +759,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 4E01BB322ECC67D3007EA4D6 /* XCRemoteSwiftPackageReference "SwiftUIX" */;
 			productName = SwiftUIX;
+		};
+		4E6362442EE3D20C0080D714 /* Transmission */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4E6362422EE3D20C0080D714 /* XCRemoteSwiftPackageReference "Transmission" */;
+			productName = Transmission;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

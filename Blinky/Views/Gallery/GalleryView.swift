@@ -17,16 +17,18 @@ struct GalleryView: View {
     @State private var hoveredAsset: PhotoAsset?
     @StateObject private var viewModel = GalleryViewModel()
     @State private var isScrolledPastTop: Bool = false
-    let namespace: Namespace.ID
     @Namespace private var namespaceHeader
     @Binding var isScrolledToBottom: Bool
     let safeArea: EdgeInsets
+    let galleryNamespace: Namespace.ID
+    @State var isMatchedGeometryPresented = false
+  
     
-    init(focusedAsset: Binding<PhotoAsset?>, namespace: Namespace.ID, isScrolledToBottom: Binding<Bool>, safeArea: EdgeInsets) {
+    init(focusedAsset: Binding<PhotoAsset?>, isScrolledToBottom: Binding<Bool>, safeArea: EdgeInsets, galleryNamespace: Namespace.ID) {
         self._focusedAsset = focusedAsset
-        self.namespace = namespace
         self._isScrolledToBottom = isScrolledToBottom
         self.safeArea = safeArea
+        self.galleryNamespace = galleryNamespace
     }
     
     
@@ -108,7 +110,6 @@ struct GalleryView: View {
             if let asset = hoveredAsset {
                 HoverView(
                     asset: asset,
-                    namespace: namespace,
                     onClose: {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                             hoveredAsset = nil
@@ -123,6 +124,20 @@ struct GalleryView: View {
                 )
                 .zIndex(2)
             }
+        }
+  
+        .navigationDestination(for: PhotoAsset.self) { selectedAsset in
+            GalleryDetailView(
+                asset: selectedAsset,
+                assets: assets,
+                galleryNamespace: galleryNamespace,
+                onDelete: {
+                    withAnimation {
+                        viewModel.delete(selectedAsset, context: modelContext)
+                    }
+                }
+            )
+            
         }
     }
        
@@ -140,53 +155,84 @@ struct GalleryView: View {
                 let isFocused = focusedAsset?.id == asset.id
                 let isHovered = hoveredAsset?.id == asset.id
                 
-                ZStack {
-                    NavigationLink(value: asset){
-                        GalleryTile(
-                            asset: asset,
-                            isSelectionMode: viewModel.isSelectionMode,
-                            isSelected: viewModel.isSelected(asset),
-                            isFocused: isFocused || isHovered,
-                            namespace: namespace,
-                            onDelete: {
-                                withAnimation {
-                                    viewModel.delete(asset, context: modelContext)
-                                    if focusedAsset?.id == asset.id {
-                                        focusedAsset = nil
-                                    }
-                                }
+                GalleryTileWithNavigation(
+                    asset: asset,
+                    assets: assets,
+                    isSelectionMode: viewModel.isSelectionMode,
+                    isSelected: viewModel.isSelected(asset),
+                    isFocused: isFocused || isHovered,
+                    galleryNamespace: galleryNamespace,
+                    onDelete: {
+                        withAnimation {
+                            viewModel.delete(asset, context: modelContext)
+                            if focusedAsset?.id == asset.id {
+                                focusedAsset = nil
                             }
-                        )
-                        .matchedTransitionSource(id: asset.id, in: namespace){
-                            $0.background(.clear)
-                                .clipShape(.rect(cornerRadius: 16))
                         }
-                    }
-                    .disabled(viewModel.isSelectionMode)
-                    .simultaneousGesture(
-                        LongPressGesture(minimumDuration: 0.5)
-                            .onEnded { _ in
-                                if !viewModel.isSelectionMode {
-                                    withAnimation(.linear(duration: 0.2)) {
-                                        hoveredAsset = asset
-                                    }
-                                }
+                    },
+                    onLongPress: {
+                        if !viewModel.isSelectionMode {
+                            withAnimation(.linear(duration: 0.2)) {
+                                hoveredAsset = asset
                             }
-                    )
-                    
-                    // Overlay button for selection mode
-                    if viewModel.isSelectionMode {
-                        Color.clear
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                viewModel.toggleSelection(for: asset)
-                            }
+                        }
+                    },
+                    onSelectionTap: {
+                        viewModel.toggleSelection(for: asset)
                     }
-                }
+                )
             }
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 24)
+    }
+}
+
+// Separate view to handle navigation per tile
+private struct GalleryTileWithNavigation: View {
+    let asset: PhotoAsset
+    let assets: [PhotoAsset]
+    let isSelectionMode: Bool
+    let isSelected: Bool
+    let isFocused: Bool
+    let galleryNamespace: Namespace.ID
+    let onDelete: () -> Void
+    let onLongPress: () -> Void
+    let onSelectionTap: () -> Void
+    
+    @Environment(\.modelContext) private var modelContext
+    
+    var body: some View {
+        ZStack {
+            NavigationLink(value: asset) {
+                GalleryTile(
+                    asset: asset,
+                    isSelectionMode: isSelectionMode,
+                    isSelected: isSelected,
+                    isFocused: isFocused,
+                    isPresenting: false,
+                    onDelete: onDelete
+                )
+            }
+            .buttonStyle(ScaleButtonStyle())
+            .matchedTransitionSource(id: asset.id, in: galleryNamespace)
+            .disabled(isSelectionMode)
+            .simultaneousGesture(
+                LongPressGesture(minimumDuration: 0.5)
+                    .onEnded { _ in
+                        onLongPress()
+                    }
+            )
+            
+            // Overlay button for selection mode
+            if isSelectionMode {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        onSelectionTap()
+                    }
+            }
+        }
     }
 }
 
@@ -196,38 +242,23 @@ private struct GalleryTile: View {
     let isSelectionMode: Bool
     let isSelected: Bool
     let isFocused: Bool
-    let namespace: Namespace.ID
+    let isPresenting: Bool
     let onDelete: () -> Void
     @State private var isPressed: Bool = false
     
     var body: some View {
-        // Use previewURL for consistent image quality with detail view
-        let image = PhotoImageProvider.image(at: asset.originalURL)
-        return ZStack(alignment: .topTrailing) {
-            if let image {
-                Image(uiImage: image)
-                    .resizable()
-                    .matchedGeometryEffect(
-                        id: asset.id,
-                        in: namespace,
-                        isSource: true
-                    )
-                    .scaledToFill()
-                    .opacity(isFocused ? 0 : 1)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 3)
-                    )
-            } else {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color.gray.opacity(0.25))
-                    .matchedGeometryEffect(
-                        id: asset.id,
-                        in: namespace,
-                        isSource: true
-                    )
-            }
+        ZStack(alignment: .topTrailing) {
+            // NOTE: SwiftUI's AsyncImage only works with NETWORK URLs
+            // For local file URLs, we must use our custom AsyncPhotoImage
+            AsyncPhotoImage(url: asset.thumbnailURL, contentMode: .fit)
+            
+                .opacity(isFocused || isPresenting ? 0 : 1)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 3)
+                )
+            
             if isSelectionMode {
                 ZStack {
                     if isSelected {
@@ -268,74 +299,46 @@ struct ScaleButtonStyle: ButtonStyle {
 #Preview {
     @Previewable @State var focusedAsset: PhotoAsset? = nil
     @Previewable @State var isScrolledToBottom = true
-    @Previewable @Namespace var namespace
+    @Previewable @Namespace var previewNamespace
     
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: PhotoAsset.self, configurations: config)
     
-    // Add sample data
-    let sampleAssets = [
-        PhotoAsset(
-            originalURL: URL(fileURLWithPath: "/tmp/sample1.jpg"),
-            previewURL: URL(fileURLWithPath: "/tmp/sample1.jpg"),
-            thumbnailURL: URL(fileURLWithPath: "/tmp/sample1.jpg"),
-            filterName: "Cinematic",
-            lens: "50mm",
-            iso: 400,
-            aperture: 1.8,
-            shutterSpeed: "1/125",
-            locationDescription: "Tokyo, Japan",
-            capturedAt: Date().addingTimeInterval(-86400)
-        ),
-        PhotoAsset(
-            originalURL: URL(fileURLWithPath: "/tmp/sample2.jpg"),
-            previewURL: URL(fileURLWithPath: "/tmp/sample2.jpg"),
-            thumbnailURL: URL(fileURLWithPath: "/tmp/sample2.jpg"),
-            filterName: "Vivid",
-            lens: "24mm",
-            iso: 200,
-            aperture: 2.8,
-            shutterSpeed: "1/250",
-            locationDescription: "New York, USA",
-            capturedAt: Date().addingTimeInterval(-172800)
-        ),
-        PhotoAsset(
-            originalURL: URL(fileURLWithPath: "/tmp/sample3.jpg"),
-            previewURL: URL(fileURLWithPath: "/tmp/sample3.jpg"),
-            thumbnailURL: URL(fileURLWithPath: "/tmp/sample3.jpg"),
-            filterName: "Noir",
-            lens: "33mm",
-            iso: 800,
-            aperture: 1.4,
-            shutterSpeed: "1/60",
-            locationDescription: "Paris, France",
-            capturedAt: Date().addingTimeInterval(-259200)
-        ),
-        PhotoAsset(
-            originalURL: URL(fileURLWithPath: "/tmp/sample4.jpg"),
-            previewURL: URL(fileURLWithPath: "/tmp/sample4.jpg"),
-            thumbnailURL: URL(fileURLWithPath: "/tmp/sample4.jpg"),
-            filterName: "Classic Film",
-            lens: "70mm",
-            iso: 100,
-            aperture: 2.0,
-            shutterSpeed: "1/500",
-            locationDescription: "London, UK",
-            capturedAt: Date().addingTimeInterval(-345600)
-        )
-    ]
+    // Create temporary files from asset catalog images
+    let tempDir = FileManager.default.temporaryDirectory
+    let imageNames = ["img1", "img2", "img3", "img4"]
     
-    for asset in sampleAssets {
+    for (index, imageName) in imageNames.enumerated() {
+        let imageURL = tempDir.appendingPathComponent("sample\(index + 1).jpg")
+        
+        // Write asset catalog image to temp file
+        if let image = UIImage(named: imageName),
+           let data = image.jpegData(compressionQuality: 0.9) {
+            try? data.write(to: imageURL)
+        }
+        
+        let asset = PhotoAsset(
+            originalURL: imageURL,
+            previewURL: imageURL,
+            thumbnailURL: imageURL,
+            filterName: ["Cinematic", "Vivid", "Noir", "Classic Film"][index],
+            lens: ["50mm", "24mm", "33mm", "70mm"][index],
+            iso: [400, 200, 800, 100][index],
+            aperture: [1.8, 2.8, 1.4, 2.0][index],
+            shutterSpeed: ["1/125", "1/250", "1/60", "1/500"][index],
+            locationDescription: ["Tokyo, Japan", "New York, USA", "Paris, France", "London, UK"][index],
+            capturedAt: Date().addingTimeInterval(Double(-86400 * (index + 1)))
+        )
         container.mainContext.insert(asset)
     }
     
     return NavigationStack {
         GalleryView(
             focusedAsset: $focusedAsset,
-            namespace: namespace,
             isScrolledToBottom: $isScrolledToBottom,
-            safeArea: EdgeInsets(top: 59, leading: 0, bottom: 34, trailing: 0)
+            safeArea: EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0),
+            galleryNamespace: previewNamespace
         )
-        .modelContainer(container)
     }
+    .modelContainer(container)
 }

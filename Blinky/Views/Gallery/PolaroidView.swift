@@ -10,7 +10,6 @@ import SwiftData
 
 struct PolaroidView: View {
     let asset: PhotoAsset
-    let namespace: Namespace.ID
     var isSelectionMode: Bool = false
     var isSelected: Bool = false
     var onTap: () -> Void
@@ -20,18 +19,12 @@ struct PolaroidView: View {
             if let image = PhotoImageProvider.image(at: asset.thumbnailURL) {
                 Image(uiImage: image)
                     .resizable()
-//                    .matchedGeometryEffect(
-//                        id: asset.id,
-//                        in: namespace,
-//                        isSource: true
-//                    )
                     .scaledToFit()
                     .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
                     .onTapGesture { onTap() }
             } else {
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
                     .fill(Color.gray.opacity(0.3))
-                    .matchedGeometryEffect(id: asset.id, in: namespace, isSource: true)
                     .aspectRatio(1, contentMode: .fit)
                     .onTapGesture { onTap() }
             }
