@@ -321,6 +321,7 @@ struct CameraView: View {
                     icon: controlType.icon,
                     isSelected: viewModel.activeControl == controlType,
                     isActive: isControlActive(controlType),
+                    isCustomIcon: controlType.isCustomIcon,
                     action: { viewModel.activeControl = controlType }
                 )
             }
@@ -361,6 +362,7 @@ struct CameraView: View {
                 title: viewModel.activeControl.title,
                 displayValue: viewModel.currentDisplayValue,
                 isAuto: viewModel.currentAutoState,
+                isCustomIcon: viewModel.activeControl.isCustomIcon,
                 onAutoToggle: { viewModel.toggleAutoForCurrentControl() }
             )
             

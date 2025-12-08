@@ -175,6 +175,7 @@ struct CameraControlHeader: View {
     let title: String
     let displayValue: String
     let isAuto: Bool
+    var isCustomIcon: Bool = false  // Whether to use Image() instead of Image(systemName:)
     let onAutoToggle: () -> Void
     
     var body: some View {
@@ -188,15 +189,25 @@ struct CameraControlHeader: View {
             
             // Left & Right elements
             HStack(spacing: 12) {
-                // Icon
-                Image(systemName: icon)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(Color.primary)
-                    .frame(width: 32, height: 32)
-                    .background(
-                        Circle()
-                            .fill(Color.primary.opacity(0.15))
-                    )
+                // Icon - supports both system and custom icons
+                Group {
+                    if isCustomIcon {
+                        Image(icon)
+                            .renderingMode(.template)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 16, height: 16)
+                    } else {
+                        Image(systemName: icon)
+                            .font(.system(size: 16, weight: .medium))
+                    }
+                }
+                .foregroundStyle(Color.primary)
+                .frame(width: 32, height: 32)
+                .background(
+                    Circle()
+                        .fill(Color.primary.opacity(0.15))
+                )
                 
                 // Title
                 Text(title)

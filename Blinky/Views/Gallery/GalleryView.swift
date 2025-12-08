@@ -9,7 +9,6 @@ import SwiftUI
 import SwiftData
 import UIKit
 import SwiftUIMasonry
-import Transmission
 
 struct GalleryView: View {
     @Binding var focusedAsset: PhotoAsset?
@@ -21,12 +20,15 @@ struct GalleryView: View {
     @Namespace private var namespaceHeader
     @Binding var isScrolledToBottom: Bool
     let safeArea: EdgeInsets
+    let galleryNamespace: Namespace.ID
     @State var isMatchedGeometryPresented = false
+  
     
-    init(focusedAsset: Binding<PhotoAsset?>, isScrolledToBottom: Binding<Bool>, safeArea: EdgeInsets) {
+    init(focusedAsset: Binding<PhotoAsset?>, isScrolledToBottom: Binding<Bool>, safeArea: EdgeInsets, galleryNamespace: Namespace.ID) {
         self._focusedAsset = focusedAsset
         self._isScrolledToBottom = isScrolledToBottom
         self.safeArea = safeArea
+        self.galleryNamespace = galleryNamespace
     }
     
     
@@ -123,6 +125,20 @@ struct GalleryView: View {
                 .zIndex(2)
             }
         }
+  
+        .navigationDestination(for: PhotoAsset.self) { selectedAsset in
+            GalleryDetailView(
+                asset: selectedAsset,
+                assets: assets,
+                galleryNamespace: galleryNamespace,
+                onDelete: {
+                    withAnimation {
+                        viewModel.delete(selectedAsset, context: modelContext)
+                    }
+                }
+            )
+            
+        }
     }
        
     
@@ -139,11 +155,13 @@ struct GalleryView: View {
                 let isFocused = focusedAsset?.id == asset.id
                 let isHovered = hoveredAsset?.id == asset.id
                 
-                GalleryTileWithPresentation(
+                GalleryTileWithNavigation(
                     asset: asset,
+                    assets: assets,
                     isSelectionMode: viewModel.isSelectionMode,
                     isSelected: viewModel.isSelected(asset),
                     isFocused: isFocused || isHovered,
+                    galleryNamespace: galleryNamespace,
                     onDelete: {
                         withAnimation {
                             viewModel.delete(asset, context: modelContext)
@@ -170,60 +188,34 @@ struct GalleryView: View {
     }
 }
 
-// Separate view to handle presentation state per tile
-private struct GalleryTileWithPresentation: View {
+// Separate view to handle navigation per tile
+private struct GalleryTileWithNavigation: View {
     let asset: PhotoAsset
+    let assets: [PhotoAsset]
     let isSelectionMode: Bool
     let isSelected: Bool
     let isFocused: Bool
+    let galleryNamespace: Namespace.ID
     let onDelete: () -> Void
     let onLongPress: () -> Void
     let onSelectionTap: () -> Void
     
-    @State private var isPresenting = false
     @Environment(\.modelContext) private var modelContext
     
     var body: some View {
         ZStack {
-            Button{
-                withAnimation{
-                    isPresenting = true
-                }
-            } label:{
-                // PresentationSourceViewLink - label automatically becomes source view for transition
-                PresentationSourceViewLink(
-                    transition: .zoom(
-                        options: .init(options: .init(isInteractive: true))
-                    ),
-                    
-                    isPresented: $isPresenting
-                ) {
-                    // Destination view
-                    GalleryDetailView(
-                        asset: asset,
-                        onDelete: onDelete
-                    )
-                } label: {
-//                    AsyncPhotoImage(url: asset.originalURL, contentMode: .fill)
-//                        .opacity(isFocused || isPresenting ? 0 : 1)
-//                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-//                        .overlay(
-//                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-//                                .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 3)
-//                        )
-                    // Source view (this is what shows in the grid and transitions from)
-                        GalleryTile(
-                            asset: asset,
-                            isSelectionMode: isSelectionMode,
-                            isSelected: isSelected,
-                            isFocused: isFocused,
-                            isPresenting: isPresenting,
-                            onDelete: onDelete
-                        )
-                }
-                .buttonStyle(ScaleButtonStyle())
+            NavigationLink(value: asset) {
+                GalleryTile(
+                    asset: asset,
+                    isSelectionMode: isSelectionMode,
+                    isSelected: isSelected,
+                    isFocused: isFocused,
+                    isPresenting: false,
+                    onDelete: onDelete
+                )
             }
             .buttonStyle(ScaleButtonStyle())
+            .matchedTransitionSource(id: asset.id, in: galleryNamespace)
             .disabled(isSelectionMode)
             .simultaneousGesture(
                 LongPressGesture(minimumDuration: 0.5)
@@ -307,6 +299,7 @@ struct ScaleButtonStyle: ButtonStyle {
 #Preview {
     @Previewable @State var focusedAsset: PhotoAsset? = nil
     @Previewable @State var isScrolledToBottom = true
+    @Previewable @Namespace var previewNamespace
     
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: PhotoAsset.self, configurations: config)
@@ -339,10 +332,13 @@ struct ScaleButtonStyle: ButtonStyle {
         container.mainContext.insert(asset)
     }
     
-    return GalleryView(
-        focusedAsset: $focusedAsset,
-        isScrolledToBottom: $isScrolledToBottom,
-        safeArea: EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0)
-    )
+    return NavigationStack {
+        GalleryView(
+            focusedAsset: $focusedAsset,
+            isScrolledToBottom: $isScrolledToBottom,
+            safeArea: EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0),
+            galleryNamespace: previewNamespace
+        )
+    }
     .modelContainer(container)
 }

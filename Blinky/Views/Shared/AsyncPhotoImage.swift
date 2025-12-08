@@ -28,6 +28,7 @@ struct AsyncPhotoImage: View {
             if let image {
                 // Use Image(uiImage:) for local files - AsyncImage only works with network URLs
                 Image(uiImage: image)
+                    
                     .resizable()
                     .aspectRatio(contentMode: contentMode)
             } else if isLoading {

@@ -11,27 +11,38 @@ struct CameraControlButton: View {
     let icon: String
     let isSelected: Bool
     var isActive: Bool = false
+    var isCustomIcon: Bool = false  // Whether to use Image() instead of Image(systemName:)
     let action: () -> Void
     
     private let size: CGFloat = 48
     
     var body: some View {
         Button(action: action) {
-            Image(systemName: icon)
-                .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(isSelected ? .white : (isActive ? Color.primary : Color.icon))
-                .frame(width: size, height: size)
-                .background(
-                    Circle()
-                        .fill(isSelected ? Color.primary : Color.white.opacity(0.1))
-                )
-                .overlay(
-                    Circle()
-                        .strokeBorder(
-                            isSelected ? Color.primary : (isActive ? Color.primary.opacity(0.5) : Color.white.opacity(0.15)),
-                            lineWidth: 1.5
-                        )
-                )
+            Group {
+                if isCustomIcon {
+                    Image(icon)
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 18, height: 18)
+                } else {
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .medium))
+                }
+            }
+            .foregroundStyle(isSelected ? .white : (isActive ? Color.primary : Color.icon))
+            .frame(width: size, height: size)
+            .background(
+                Circle()
+                    .fill(isSelected ? Color.primary : Color.white.opacity(0.1))
+            )
+            .overlay(
+                Circle()
+                    .strokeBorder(
+                        isSelected ? Color.primary : (isActive ? Color.primary.opacity(0.5) : Color.white.opacity(0.15)),
+                        lineWidth: 1.5
+                    )
+            )
         }
         .buttonStyle(.plain)
         .scaleEffect(isSelected ? 1.05 : 1.0)
@@ -53,8 +64,16 @@ enum CameraControlType: String, CaseIterable, Identifiable {
         switch self {
         case .exposure: return "sun.max.fill"
         case .temperature: return "thermometer.medium"
-        case .shutterSpeed: return "timelapse"
+        case .shutterSpeed: return "shutter"
         case .iso: return "camera.aperture"
+        }
+    }
+    
+    /// Whether this control type uses a custom asset icon instead of system icon
+    var isCustomIcon: Bool {
+        switch self {
+        case .shutterSpeed: return true
+        default: return false
         }
     }
     

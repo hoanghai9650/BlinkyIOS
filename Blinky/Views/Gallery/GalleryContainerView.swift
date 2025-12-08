@@ -24,11 +24,14 @@ enum GalleryTab: Int, Identifiable, CaseIterable {
 struct GalleryContainerView: View {
     var onCameraRequest: () -> Void = {}
     let safeArea: EdgeInsets
+    let galleryNamespace: Namespace.ID
     @State private var selection: GalleryTab = .gallery
     @State private var focusedAsset: PhotoAsset?
     @State private var isScrolledToBottom: Bool = true
     
     var body: some View {
+        NavigationStack{
+
         ZStack(alignment: .bottom) {
             // Content
             Group {
@@ -37,7 +40,8 @@ struct GalleryContainerView: View {
                     GalleryView(
                         focusedAsset: $focusedAsset,
                         isScrolledToBottom: $isScrolledToBottom,
-                        safeArea: safeArea
+                        safeArea: safeArea,
+                        galleryNamespace: galleryNamespace
                     )
                     
                 case .album:
@@ -57,6 +61,7 @@ struct GalleryContainerView: View {
 //            .animation(.spring(response: 0.35, dampingFraction: 0.9), value: focusedAsset)
         }
         .background(Color.background)
+     }
     }
     
     private var customTabBarContent: some View {
@@ -116,5 +121,9 @@ struct GalleryContainerView: View {
 }
 
 #Preview {
-    GalleryContainerView(safeArea: EdgeInsets(top: 59, leading: 0, bottom: 34, trailing: 0))
+    @Previewable @Namespace var previewNamespace
+    GalleryContainerView(
+        safeArea: EdgeInsets(top: 59, leading: 0, bottom: 34, trailing: 0),
+        galleryNamespace: previewNamespace
+    )
 }

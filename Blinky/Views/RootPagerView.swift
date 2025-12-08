@@ -25,29 +25,33 @@ enum RootPage: Int, Identifiable, CaseIterable {
 struct RootPagerView: View {
     @State private var currentPage: RootPage = .library
     @State private var safeAreaInsets: EdgeInsets = .init()
+    @Namespace private var galleryNamespace
     
     var body: some View {
-        GeometryReader { geo in
-            TabView(selection: $currentPage) {
-                GalleryContainerView(
-                    onCameraRequest: {
-                        withAnimation {
-                            currentPage = .camera
-                        }
-                    },
-                    safeArea: safeAreaInsets
-                )
-                .tag(RootPage.library)
-                
-                CameraView(isActive: currentPage == .camera)
-                    .tag(RootPage.camera)
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .ignoresSafeArea()
-            .background(Color.background.ignoresSafeArea())
-            .onAppear {
-                UIScrollView.appearance().contentInsetAdjustmentBehavior = .never
-                UIScrollView.appearance().automaticallyAdjustsScrollIndicatorInsets = false
+        NavigationStack {
+            GeometryReader { geo in
+                TabView(selection: $currentPage) {
+                    GalleryContainerView(
+                        onCameraRequest: {
+                            withAnimation {
+                                currentPage = .camera
+                            }
+                        },
+                        safeArea: safeAreaInsets,
+                        galleryNamespace: galleryNamespace
+                    )
+                    .tag(RootPage.library)
+                    
+                    CameraView(isActive: currentPage == .camera)
+                        .tag(RootPage.camera)
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .ignoresSafeArea()
+                .background(Color.background.ignoresSafeArea())
+                .onAppear {
+                    UIScrollView.appearance().contentInsetAdjustmentBehavior = .never
+                    UIScrollView.appearance().automaticallyAdjustsScrollIndicatorInsets = false
+                }
             }
         }
     }
